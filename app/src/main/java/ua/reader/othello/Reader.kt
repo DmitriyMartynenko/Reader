@@ -2,8 +2,6 @@ package ua.reader.othello
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,42 +12,25 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.Face
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -59,15 +40,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.launch
 
 /** One entry of the continuous reading list. */
 sealed interface ReaderRow {
@@ -92,18 +69,15 @@ class ReaderLayout(play: Play) {
     val rows: List<ReaderRow>
     val sceneStart: Map<Int, Int>
     val lineRow: Map<Int, Int>
+    private val firstLine: Map<Int, Int> = play.scenes.associate { it.index to it.lines.first().id }
 
     init {
         val rows = mutableListOf<ReaderRow>()
         val sceneStart = mutableMapOf<Int, Int>()
         val lineRow = mutableMapOf<Int, Int>()
         for (scene in play.scenes) {
-            if (scene.number == 1) {
-                sceneStart[scene.index] = rows.size
-                rows += ReaderRow.ActHeader(scene)
-            } else {
-                sceneStart[scene.index] = rows.size
-            }
+            sceneStart[scene.index] = rows.size
+            if (scene.number == 1) rows += ReaderRow.ActHeader(scene)
             rows += ReaderRow.SceneHeader(scene)
             for (line in scene.lines) {
                 lineRow[line.id] = rows.size
@@ -114,135 +88,40 @@ class ReaderLayout(play: Play) {
         this.sceneStart = sceneStart
         this.lineRow = lineRow
     }
+
+    /** The place a row stands for; act and scene headings stand for the scene's first line. */
+    fun focusAt(row: Int): Focus = when (val r = rows[row.coerceIn(0, rows.lastIndex)]) {
+        is ReaderRow.Speech -> Focus(r.scene.index, r.line.id)
+        is ReaderRow.Direction -> Focus(r.scene.index, r.line.id)
+        else -> Focus(r.scene.index, firstLine.getValue(r.scene.index))
+    }
+
+    /** The row to scroll to for a place; the start of a scene shows its heading. */
+    fun rowFor(focus: Focus): Int =
+        if (focus.line == firstLine[focus.scene]) sceneStart.getValue(focus.scene) else lineRow.getValue(focus.line)
 }
 
 sealed interface Sheet {
-    data class Profile(val id: String) : Sheet
+    /** [scene] sets how far the spoiler-free profile may look; null means the reading position. */
+    data class Profile(val id: String, val scene: Int? = null) : Sheet
     data object Cast : Sheet
     data object AllCharacters : Sheet
-    data object Contents : Sheet
     data object Settings : Sheet
 }
 
-@OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
+/** The base of the pyramid: the full text as one continuous list. */
 @Composable
-fun ReaderApp(play: Play, prefs: Prefs, updates: UpdateController) {
-    val layout = remember(play) { ReaderLayout(play) }
-    val listState = rememberLazyListState(prefs.savedRow.coerceIn(0, layout.rows.lastIndex), prefs.savedOffset)
-    val scope = rememberCoroutineScope()
-    var sheets by remember { mutableStateOf(listOf<Sheet>()) }
-
-    LaunchedEffect(updates) { updates.checkOnLaunch(scope) }
-
-    val currentScene by remember {
-        derivedStateOf { layout.rows[listState.firstVisibleItemIndex.coerceIn(0, layout.rows.lastIndex)].scene }
-    }
-
-    LaunchedEffect(listState) {
-        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
-            .debounce(400)
-            .collect { (row, offset) -> prefs.savePosition(row, offset) }
-    }
-
-    fun open(sheet: Sheet) { sheets = sheets + sheet }
-    fun jumpTo(row: Int) {
-        sheets = emptyList()
-        scope.launch { listState.scrollToItem(row) }
-    }
-
-    val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
-
-    Scaffold(
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        topBar = {
-            TopAppBar(
-                scrollBehavior = scrollBehavior,
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background,
-                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-                title = {
-                    Column(Modifier.clickable { open(Sheet.Contents) }) {
-                        Text(
-                            "Акт ${ROMAN[currentScene.act]} · Сцена ${currentScene.number}",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            currentScene.place,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { open(Sheet.Contents) }) {
-                        Icon(Icons.AutoMirrored.Filled.List, contentDescription = "Зміст")
-                    }
-                    IconButton(onClick = { open(Sheet.AllCharacters) }) {
-                        Icon(Icons.Filled.Person, contentDescription = "Усі персонажі")
-                    }
-                    IconButton(onClick = { open(Sheet.Settings) }) {
-                        BadgedBox(badge = { if (updates.available != null) Badge() }) {
-                            Icon(Icons.Filled.Settings, contentDescription = "Налаштування")
-                        }
-                    }
-                },
-            )
-        },
-        floatingActionButton = {
-            ExtendedFloatingActionButton(
-                onClick = { open(Sheet.Cast) },
-                icon = { Icon(Icons.Filled.Face, contentDescription = null) },
-                text = { Text("Хто тут?") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        },
-    ) { padding ->
-        PlayText(
-            play = play,
-            layout = layout,
-            prefs = prefs,
-            listState = listState,
-            contentPadding = PaddingValues(
-                top = padding.calculateTopPadding(),
-                bottom = padding.calculateBottomPadding() + 96.dp,
-            ),
-            onCharacter = { open(Sheet.Profile(it)) },
-        )
-    }
-
-    if (sheets.isNotEmpty()) {
-        SheetHost(
-            play = play,
-            prefs = prefs,
-            sheet = sheets.last(),
-            canGoBack = sheets.size > 1,
-            currentScene = currentScene,
-            onBack = { sheets = sheets.dropLast(1) },
-            onDismiss = { sheets = emptyList() },
-            onOpen = ::open,
-            onJumpToScene = { jumpTo(layout.sceneStart.getValue(it)) },
-            onJumpToLine = { jumpTo(layout.lineRow.getValue(it)) },
-            updates = updates,
-        )
-    }
-
-    UpdateDialogs(updates, scope)
-}
-
-@Composable
-private fun PlayText(
+fun PlayText(
     play: Play,
     layout: ReaderLayout,
     prefs: Prefs,
     listState: LazyListState,
     contentPadding: PaddingValues,
     onCharacter: (String) -> Unit,
+    onMoment: (Moment) -> Unit,
+    onIdea: () -> Unit,
 ) {
-    val fontSize = prefs.fontSize.sp
+    val moments = remember(play) { play.pyramid.moments.associateBy { it.lineId } }
     LazyColumn(
         state = listState,
         contentPadding = contentPadding,
@@ -250,32 +129,83 @@ private fun PlayText(
     ) {
         items(layout.rows, key = { it.key }) { row ->
             when (row) {
-                is ReaderRow.ActHeader -> ActHeader(row.scene.act)
-                is ReaderRow.SceneHeader -> SceneHeader(row.scene)
-                is ReaderRow.Direction -> DirectionRow(play, row.line, prefs, onCharacter)
-                is ReaderRow.Speech -> SpeechRow(play, row.line, prefs, fontSize.value, onCharacter)
+                is ReaderRow.ActHeader -> ActHeader(row.scene.act, play.pyramid.act(row.scene.act).title)
+                is ReaderRow.SceneHeader -> SceneHeader(row.scene, play.pyramid.scenes[row.scene.index].title)
+                is ReaderRow.Direction -> LineBlock(moments[row.line.id], onMoment) {
+                    DirectionRow(play, row.line, prefs, onCharacter)
+                }
+                is ReaderRow.Speech -> LineBlock(moments[row.line.id], onMoment) {
+                    SpeechRow(play, row.line, prefs, onCharacter)
+                }
             }
         }
-        item(key = "end") {
-            Column(
-                Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Text("Кінець", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "Вільям Шекспір · «Отелло, венеційський мавр»\nПереклад українською для цього застосунку",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
+        item(key = "end") { TheEnd(play, onIdea) }
+    }
+}
+
+/** Marks lines that are key moments of the pyramid; the label leads one level up. */
+@Composable
+private fun LineBlock(moment: Moment?, onMoment: (Moment) -> Unit, content: @Composable () -> Unit) {
+    if (moment == null) {
+        content()
+        return
+    }
+    val accent = MaterialTheme.colorScheme.primary
+    Column(
+        Modifier.drawBehind {
+            drawLine(accent, Offset(8.dp.toPx(), 0f), Offset(8.dp.toPx(), size.height), strokeWidth = 3.dp.toPx())
+        },
+    ) {
+        Row(
+            Modifier
+                .padding(start = 14.dp, top = 8.dp)
+                .clip(RoundedCornerShape(50))
+                .clickable { onMoment(moment) }
+                .padding(horizontal = 6.dp, vertical = 2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(6.dp).background(accent, CircleShape))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                "Ключовий момент",
+                style = MaterialTheme.typography.labelSmall,
+                color = accent,
+                letterSpacing = 0.05.em,
+            )
         }
+        content()
     }
 }
 
 @Composable
-private fun ActHeader(act: Int) {
+private fun TheEnd(play: Play, onIdea: () -> Unit) {
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Text("Кінець", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+        Spacer(Modifier.height(20.dp))
+        Text(
+            "«${play.pyramid.idea}»",
+            fontFamily = FontFamily.Serif,
+            fontStyle = FontStyle.Italic,
+            fontSize = 19.sp,
+            textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        TextButton(onClick = onIdea) { Text("До вершини піраміди") }
+        Spacer(Modifier.height(12.dp))
+        Text(
+            "Вільям Шекспір · «Отелло, венеційський мавр»\nПереклад українською для цього застосунку",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
+    }
+}
+
+@Composable
+private fun ActHeader(act: Int, title: String) {
     Column(
         Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -286,22 +216,35 @@ private fun ActHeader(act: Int) {
             fontFamily = FontFamily.Serif,
             color = MaterialTheme.colorScheme.primary,
         )
+        Text(
+            title,
+            style = MaterialTheme.typography.titleMedium,
+            fontFamily = FontFamily.Serif,
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.primary,
+        )
         Spacer(Modifier.height(8.dp))
         HorizontalDivider(Modifier.width(48.dp), color = MaterialTheme.colorScheme.primary)
     }
 }
 
 @Composable
-private fun SceneHeader(scene: Scene) {
+private fun SceneHeader(scene: Scene, title: String) {
     Column(
         Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "Сцена ${scene.number}",
-            style = MaterialTheme.typography.titleMedium,
+            "СЦЕНА ${scene.number}",
+            style = MaterialTheme.typography.labelMedium,
+            letterSpacing = 0.15.em,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge,
             fontFamily = FontFamily.Serif,
-            letterSpacing = 0.08.em,
+            textAlign = TextAlign.Center,
         )
         Text(
             scene.place,
@@ -314,7 +257,8 @@ private fun SceneHeader(scene: Scene) {
 }
 
 @Composable
-private fun SpeechRow(play: Play, line: Line, prefs: Prefs, fontSize: Float, onCharacter: (String) -> Unit) {
+private fun SpeechRow(play: Play, line: Line, prefs: Prefs, onCharacter: (String) -> Unit) {
+    val fontSize = prefs.fontSize
     val speaker = play.characters[line.speaker]
     val color = (speaker?.color ?: MaterialTheme.colorScheme.primary).forTheme()
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {

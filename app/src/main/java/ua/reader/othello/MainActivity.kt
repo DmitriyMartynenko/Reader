@@ -35,7 +35,7 @@ class MainActivity : ComponentActivity() {
                         contentAlignment = Alignment.Center,
                     ) { CircularProgressIndicator() }
                 } else {
-                    ReaderApp(loaded, prefs, updates)
+                    App(loaded, prefs, updates)
                 }
             }
         }

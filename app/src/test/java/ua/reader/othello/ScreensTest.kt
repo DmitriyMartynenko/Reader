@@ -1,31 +1,28 @@
 package ua.reader.othello
 
 import android.content.SharedPreferences
+import androidx.activity.compose.LocalActivityResultRegistryOwner
+import androidx.activity.result.ActivityResultRegistry
+import androidx.activity.result.ActivityResultRegistryOwner
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.activity.compose.LocalActivityResultRegistryOwner
-import androidx.activity.result.ActivityResultRegistry
-import androidx.activity.result.ActivityResultRegistryOwner
-import androidx.activity.result.contract.ActivityResultContract
-import androidx.core.app.ActivityOptionsCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityOptionsCompat
 import app.cash.paparazzi.DeviceConfig
 import app.cash.paparazzi.Paparazzi
 import com.android.resources.NightMode
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
-import java.io.File
 
-/** Renders the main screens on the JVM so the UI can be checked without a device. */
+/** Renders the screens on the JVM so the UI can be checked without a device. */
 class ScreensTest {
     @get:Rule
     val paparazzi = Paparazzi(
@@ -34,67 +31,97 @@ class ScreensTest {
         maxPercentDifference = 100.0,
     )
 
-    private val play = Play.parse(
-        File("src/main/assets/play.json").readText(),
-        File("src/main/assets/characters.json").readText(),
-    )
+    private val play = TestData.play
     private val layout = ReaderLayout(play)
     private val temptationScene = play.scenes.first { it.act == 3 && it.number == 3 }
 
-    @Test
-    fun data_isComplete() {
-        assertEquals(15, play.scenes.size)
-        assertEquals(1391, play.scenes.sumOf { it.lines.size })
-        for (scene in play.scenes) for (line in scene.lines) {
-            assertTrue("line ${line.id} has no translation", line.uk.isNotBlank())
-            if (!line.isDirection) assertTrue("unknown speaker ${line.speaker}", line.speaker in play.characters)
-        }
-        for (c in play.characters.values) for (r in c.relations) {
-            assertTrue("${c.id} -> ${r.characterId}", r.characterId in play.characters)
-        }
-    }
+    // The reader sits in the temptation scene for every tier, so "ви тут" shows up on each level.
+    private val readingRow = layout.lineRow.getValue(542)
 
     @Test
-    fun nameRegex_matchesInflectedNamesOnly() {
-        val regex = play.nameRegex!!
-        val found = regex.findAll("Мавр кохає Дездемону, а Яго радить маврові; Мавританія — ні.")
-            .map { play.characterForName(it.value) }.toList()
-        assertEquals(listOf("othello", "desdemona", "iago", "othello"), found)
-    }
+    fun tier0_idea() = snapApp(Tier.Idea)
 
     @Test
-    fun reader_start() = snapReader(row = 0)
+    fun tier1_acts() = snapApp(Tier.Acts)
 
     @Test
-    fun reader_temptationScene() = snapReader(row = layout.lineRow.getValue(542))
+    fun tier2_scenes() = snapApp(Tier.Scenes)
 
     @Test
-    fun reader_withOriginal() = snapReader(row = layout.lineRow.getValue(542), original = true)
+    fun tier3_moments() = snapApp(Tier.Moments)
 
     @Test
-    fun reader_dark() {
+    fun tier4_text() = snapApp(Tier.Text)
+
+    @Test
+    fun tier4_textAtStart() = snapApp(Tier.Text, row = 0)
+
+    @Test
+    fun tier4_textWithOriginal() = snapApp(Tier.Text, original = true)
+
+    @Test
+    fun tier4_textAtKeyMoment() = snapApp(Tier.Text, row = layout.lineRow.getValue(1195) - 1)
+
+    @Test
+    fun tier0_ideaDark() {
         paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
-        snapReader(row = layout.lineRow.getValue(1195))
+        snapApp(Tier.Idea)
+    }
+
+    @Test
+    fun tier3_momentsDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Moments)
     }
 
     @Test
     fun sheet_profileIago() = snapSheet(Sheet.Profile("iago"))
 
     @Test
-    fun sheet_profileDesdemona() = snapSheet(Sheet.Profile("desdemona"))
+    fun sheet_profileFromActV() = snapSheet(Sheet.Profile("emilia", play.scenes.last().index))
 
     @Test
     fun sheet_cast() = snapSheet(Sheet.Cast)
 
     @Test
-    fun sheet_contents() = snapSheet(Sheet.Contents)
-
-    @Test
     fun sheet_settings() = snapSheet(Sheet.Settings)
 
-    private fun snapReader(row: Int, original: Boolean = false) {
+    @Test
+    fun sheet_settingsWithUpdate() = snapSheet(Sheet.Settings, update = sampleRelease)
+
+    @Test
+    fun dialog_updateAvailable() {
+        val prefs = Prefs(null)
+        val updates = UpdateController(null, prefs).apply { ui = UpdateUi.Available(sampleRelease) }
+        paparazzi.snapshot {
+            TestHost {
+                SheetFrame { UpdateDialogs(updates, rememberCoroutineScope()) }
+            }
+        }
+    }
+
+    private val sampleRelease = Release(
+        version = "1.2.0",
+        notes = "• Виправлено помилки перекладу в акті IV\n• Нові профілі другорядних персонажів",
+        apkUrl = "https://example.com/app.apk",
+        apkSize = 1_300_000,
+    )
+
+    private fun snapApp(tier: Tier, row: Int = readingRow, original: Boolean = false) {
         val prefs = Prefs(FakePrefs(mapOf("row" to row, "showOriginal" to original)))
-        paparazzi.snapshot { TestHost { ReaderApp(play, prefs, UpdateController(null, prefs)) } }
+        paparazzi.snapshot { TestHost { App(play, prefs, UpdateController(null, prefs), startTier = tier) } }
+    }
+
+    private fun snapSheet(sheet: Sheet, update: Release? = null) {
+        val prefs = Prefs(null)
+        val updates = UpdateController(null, prefs).apply { available = update }
+        paparazzi.snapshot {
+            TestHost {
+                SheetFrame {
+                    SheetContent(play, prefs, updates, sheet, canGoBack = false, currentScene = temptationScene)
+                }
+            }
+        }
     }
 
     /** Theme plus the activity-result registry that the update dialogs need outside a real Activity. */
@@ -112,57 +139,6 @@ class ScreensTest {
         }
         CompositionLocalProvider(LocalActivityResultRegistryOwner provides owner) {
             OthelloTheme(content)
-        }
-    }
-
-    @Test
-    fun sheet_settingsWithUpdate() = snapSheet(Sheet.Settings, update = sampleRelease)
-
-    @Test
-    fun dialog_updateAvailable() {
-        val prefs = Prefs(null)
-        val updates = UpdateController(null, prefs).apply { ui = UpdateUi.Available(sampleRelease) }
-        paparazzi.snapshot {
-            TestHost {
-                SheetFrame { UpdateDialogs(updates, rememberCoroutineScope()) }
-            }
-        }
-    }
-
-    @Test
-    fun versions_compareNumerically() {
-        assertTrue(Versions.compare("1.10.0", "1.9.2") > 0)
-        assertTrue(Versions.compare("v1.1", "1.1.0") == 0)
-        assertTrue(Versions.compare("1.0", "1.1.0") < 0)
-    }
-
-    @Test
-    fun githubRelease_parsesApkAsset() {
-        val json = """
-            {"tag_name":"v1.2.0","body":"Нове","assets":[
-              {"name":"notes.txt","browser_download_url":"https://x/notes.txt","size":1},
-              {"name":"Othello-Reader.apk","browser_download_url":"https://x/app.apk","size":1234}]}
-        """.trimIndent()
-        assertEquals(Release("1.2.0", "Нове", "https://x/app.apk", 1234), parseGithubRelease(json))
-        assertEquals(null, parseGithubRelease("""{"tag_name":"v1","body":"","assets":[]}"""))
-    }
-
-    private val sampleRelease = Release(
-        version = "1.2.0",
-        notes = "• Виправлено помилки перекладу в акті IV\n• Нові профілі другорядних персонажів",
-        apkUrl = "https://example.com/app.apk",
-        apkSize = 1_300_000,
-    )
-
-    private fun snapSheet(sheet: Sheet, update: Release? = null) {
-        val prefs = Prefs(null)
-        val updates = UpdateController(null, prefs).apply { available = update }
-        paparazzi.snapshot {
-            OthelloTheme {
-                SheetFrame {
-                    SheetContent(play, prefs, updates, sheet, canGoBack = false, currentScene = temptationScene)
-                }
-            }
         }
     }
 

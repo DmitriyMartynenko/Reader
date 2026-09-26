@@ -22,9 +22,11 @@ $props = "$root\version.properties"
 $lines = [IO.File]::ReadAllLines($props) -replace '^version=.*', "version=$Version"
 [IO.File]::WriteAllLines($props, $lines, (New-Object Text.UTF8Encoding $false))
 
-# Gradle breaks on the Cyrillic project path, so build through a temporary drive letter.
-$drive = "R:"
-subst $drive $root
+# Gradle breaks on the Cyrillic project path, so build through a drive letter. Always the same
+# letter: Kotlin's incremental compilation gets confused when the project root changes.
+$drive = "O:"
+$mapped = (subst) -match [regex]::Escape("${drive}\: => $root")
+if (-not $mapped) { subst $drive $root }
 try {
     Push-Location "$drive\"
     if (-not $env:JAVA_HOME) { $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot" }
@@ -32,7 +34,7 @@ try {
     Run { .\gradlew.bat testDebugUnitTest assembleRelease --console=plain -q }
 } finally {
     Pop-Location
-    subst $drive /D
+    if (-not $mapped) { subst $drive /D }
 }
 
 $dist = "$root\dist"

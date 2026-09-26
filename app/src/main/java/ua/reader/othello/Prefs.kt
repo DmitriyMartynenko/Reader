@@ -14,6 +14,8 @@ class Prefs(private val sp: SharedPreferences?) {
         private set
     var highlightNames by mutableStateOf(sp?.getBoolean("highlightNames", true) ?: true)
         private set
+    var startAtIdea by mutableStateOf(sp?.getBoolean("startAtIdea", true) ?: true)
+        private set
 
     val lastUpdateCheck get() = sp?.getLong("lastUpdateCheck", 0L) ?: 0L
     val savedRow get() = sp?.getInt("row", 0) ?: 0
@@ -22,6 +24,7 @@ class Prefs(private val sp: SharedPreferences?) {
     fun updateFontSize(v: Float) { fontSize = v; sp?.edit()?.putFloat("fontSize", v)?.apply() }
     fun updateShowOriginal(v: Boolean) { showOriginal = v; sp?.edit()?.putBoolean("showOriginal", v)?.apply() }
     fun updateHighlightNames(v: Boolean) { highlightNames = v; sp?.edit()?.putBoolean("highlightNames", v)?.apply() }
+    fun updateStartAtIdea(v: Boolean) { startAtIdea = v; sp?.edit()?.putBoolean("startAtIdea", v)?.apply() }
     fun updateLastUpdateCheck(v: Long) { sp?.edit()?.putLong("lastUpdateCheck", v)?.apply() }
     fun savePosition(row: Int, offset: Int) { sp?.edit()?.putInt("row", row)?.putInt("offset", offset)?.apply() }
 }

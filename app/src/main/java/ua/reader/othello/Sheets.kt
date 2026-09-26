@@ -63,13 +63,12 @@ fun SheetHost(
     onBack: () -> Unit,
     onDismiss: () -> Unit,
     onOpen: (Sheet) -> Unit,
-    onJumpToScene: (Int) -> Unit,
     onJumpToLine: (Int) -> Unit,
     updates: UpdateController,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = sheet is Sheet.Contents),
+        sheetState = rememberModalBottomSheetState(),
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
     ) {
         Column(
@@ -79,7 +78,7 @@ fun SheetHost(
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
         ) {
-            SheetContent(play, prefs, updates, sheet, canGoBack, currentScene, onBack, onOpen, onJumpToScene, onJumpToLine)
+            SheetContent(play, prefs, updates, sheet, canGoBack, currentScene, onBack, onOpen, onJumpToLine)
         }
     }
 }
@@ -94,14 +93,14 @@ fun SheetContent(
     currentScene: Scene,
     onBack: () -> Unit = {},
     onOpen: (Sheet) -> Unit = {},
-    onJumpToScene: (Int) -> Unit = {},
     onJumpToLine: (Int) -> Unit = {},
 ) {
     when (sheet) {
-        is Sheet.Profile -> ProfileSheet(play, sheet.id, currentScene, canGoBack, onBack, onOpen, onJumpToLine)
+        is Sheet.Profile -> ProfileSheet(
+            play, sheet.id, sheet.scene?.let(play.scenes::get) ?: currentScene, canGoBack, onBack, onOpen, onJumpToLine,
+        )
         Sheet.Cast -> CastSheet(play, currentScene, canGoBack, onBack, onOpen)
         Sheet.AllCharacters -> AllCharactersSheet(play, canGoBack, onBack, onOpen)
-        Sheet.Contents -> ContentsSheet(play, currentScene, onJumpToScene)
         Sheet.Settings -> SettingsSheet(prefs, updates)
     }
 }
@@ -268,7 +267,7 @@ private fun ProfileSheet(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .clickable { onOpen(Sheet.Profile(other.id)) }
+                        .clickable { onOpen(Sheet.Profile(other.id, scene.index)) }
                         .padding(vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -358,46 +357,6 @@ private fun ArcEntry(act: Int, text: String, accent: androidx.compose.ui.graphic
 }
 
 @Composable
-private fun ContentsSheet(play: Play, current: Scene, onJumpToScene: (Int) -> Unit) {
-    SheetTitle("Зміст", "Вільям Шекспір · «Отелло, венеційський мавр»")
-    for ((act, scenes) in play.scenes.groupBy { it.act }) {
-        Text(
-            "Акт ${ROMAN[act]}",
-            style = MaterialTheme.typography.titleMedium,
-            fontFamily = FontFamily.Serif,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(start = 24.dp, top = 14.dp, bottom = 2.dp),
-        )
-        for (s in scenes) {
-            val isCurrent = s.index == current.index
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .clickable { onJumpToScene(s.index) }
-                    .background(if (isCurrent) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f) else androidx.compose.ui.graphics.Color.Transparent)
-                    .padding(horizontal = 24.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    "Сцена ${s.number}",
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (isCurrent) FontWeight.SemiBold else FontWeight.Normal,
-                    modifier = Modifier.width(84.dp),
-                )
-                Column(Modifier.weight(1f)) {
-                    Text(s.place, style = MaterialTheme.typography.bodyMedium)
-                    Text(
-                        play.speakersOf(s).filter { it.main }.joinToString { it.name },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun SettingsSheet(prefs: Prefs, updates: UpdateController) {
     SheetTitle("Налаштування читання")
     Column(Modifier.padding(horizontal = 24.dp)) {
@@ -425,6 +384,12 @@ private fun SettingsSheet(prefs: Prefs, updates: UpdateController) {
             "Натисніть на ім'я, щоб дізнатися, хто це",
             prefs.highlightNames,
             prefs::updateHighlightNames,
+        )
+        SettingSwitch(
+            "Починати з вершини піраміди",
+            "Під час запуску показувати ідею п'єси, а не текст",
+            prefs.startAtIdea,
+            prefs::updateStartAtIdea,
         )
         HorizontalDivider(Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
         UpdateSection(updates)

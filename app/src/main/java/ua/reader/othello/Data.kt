@@ -45,7 +45,9 @@ data class Appearance(val lines: Int, val firstScene: Int, val firstLineId: Int)
 class Play(
     val scenes: List<Scene>,
     val characters: Map<String, Character>,
+    pyramidText: String,
 ) {
+    val pyramid: Pyramid = Pyramid.parse(pyramidText, scenes)
     val appearances: Map<String, Appearance>
     private val nameToId: Map<String, String>
     val nameRegex: Regex?
@@ -82,9 +84,10 @@ class Play(
         fun load(context: Context): Play = parse(
             context.assets.open("play.json").bufferedReader().readText(),
             context.assets.open("characters.json").bufferedReader().readText(),
+            context.assets.open("pyramid.json").bufferedReader().readText(),
         )
 
-        fun parse(playText: String, charactersText: String): Play {
+        fun parse(playText: String, charactersText: String, pyramidText: String): Play {
             val playJson = JSONObject(playText)
             val charJson = JSONObject(charactersText)
 
@@ -124,7 +127,7 @@ class Play(
                     quote = c.optString("quote").ifEmpty { null },
                 )
             }
-            return Play(scenes, characters)
+            return Play(scenes, characters, pyramidText)
         }
     }
 }
