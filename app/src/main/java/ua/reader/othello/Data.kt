@@ -52,15 +52,93 @@ data class Character(
 /** Where a character speaks in the play: line count and where their first line is. */
 data class Appearance(val lines: Int, val firstScene: Int, val firstLineId: Int)
 
+/** The words a book uses for its units: a play has acts and scenes, a novel might have parts and chapters. */
+data class Terms(
+    val act: List<String>,
+    val actTitle: String,
+    val actGenitive: String,
+    val actsTier: String,
+    val actsLocative: String,
+    val scene: List<String>,
+    val sceneTitle: String,
+    val scenesTier: String,
+    val scenesLocative: String,
+    val line: List<String>,
+) {
+    fun acts(n: Int) = uaPlural(n, act[0], act[1], act[2])
+    fun scenes(n: Int) = uaPlural(n, scene[0], scene[1], scene[2])
+    fun lines(n: Int) = uaPlural(n, line[0], line[1], line[2])
+
+    /** "Акт III · Сцена 3" */
+    fun place(scene: Scene) = "$actTitle ${roman(scene.act)} · $sceneTitle ${scene.number}"
+
+    fun tier(tier: Tier) = when (tier) {
+        Tier.Idea -> "Ідея"
+        Tier.Acts -> actsTier
+        Tier.Scenes -> scenesTier
+        Tier.Moments -> "Моменти"
+        Tier.Text -> "Текст"
+    }
+
+    companion object {
+        fun parse(o: JSONObject) = Terms(
+            act = o.getJSONArray("act").strings(),
+            actTitle = o.getString("actTitle"),
+            actGenitive = o.getString("actGenitive"),
+            actsTier = o.getString("actsTier"),
+            actsLocative = o.getString("actsLocative"),
+            scene = o.getJSONArray("scene").strings(),
+            sceneTitle = o.getString("sceneTitle"),
+            scenesTier = o.getString("scenesTier"),
+            scenesLocative = o.getString("scenesLocative"),
+            line = o.getJSONArray("line").strings(),
+        )
+    }
+}
+
+/** A book's passport: what the library shelf and the book's own screens say about it. */
+data class BookMeta(
+    val id: String,
+    val title: String,
+    val fullTitle: String,
+    val author: String,
+    val genre: String,
+    val year: Int,
+    val cover: Color,
+    val originalLabel: String,
+    val originalHint: String,
+    val credits: String,
+    val terms: Terms,
+) {
+    companion object {
+        fun parse(o: JSONObject) = BookMeta(
+            id = o.getString("id"),
+            title = o.getString("title"),
+            fullTitle = o.getString("fullTitle"),
+            author = o.getString("author"),
+            genre = o.getString("genre"),
+            year = o.getInt("year"),
+            cover = hexColor(o.getString("cover")),
+            originalLabel = o.getString("originalLabel"),
+            originalHint = o.getString("originalHint"),
+            credits = o.getString("credits"),
+            terms = Terms.parse(o.getJSONObject("terms")),
+        )
+    }
+}
+
+/** One book of the library, fully loaded: text, characters, pyramid and perspectives. */
 class Play(
+    val meta: BookMeta,
     val scenes: List<Scene>,
     val characters: Map<String, Character>,
-    pyramidText: String,
-    perspectivesText: String,
+    pyramidJson: JSONObject,
+    perspectivesJson: JSONObject,
 ) {
-    val pyramid: Pyramid = Pyramid.parse(pyramidText, scenes)
+    val terms: Terms get() = meta.terms
+    val pyramid: Pyramid = Pyramid.parse(pyramidJson, scenes)
     val lines: Map<Int, Line> = scenes.flatMap { it.lines }.associateBy { it.id }
-    val perspectives: Map<String, Perspective> = Perspective.parseAll(perspectivesText, scenes)
+    val perspectives: Map<String, Perspective> = Perspective.parseAll(perspectivesJson, scenes)
     val appearances: Map<String, Appearance>
     private val nameToId: Map<String, String>
     val nameRegex: Regex?
@@ -94,14 +172,13 @@ class Play(
         scene.lines.mapNotNull { it.speaker }.distinct().mapNotNull { characters[it] }
 
     companion object {
-        fun load(context: Context): Play {
-            fun asset(name: String) = context.assets.open(name).bufferedReader().readText()
-            return parse(asset("play.json"), asset("characters.json"), asset("pyramid.json"), asset("perspectives.json"))
-        }
+        /** Opens a book of the library: assets/books/<file>, as written by tools/build-book.js. */
+        fun load(context: Context, file: String): Play =
+            parse(context.assets.open("books/$file").bufferedReader().readText())
 
-        fun parse(playText: String, charactersText: String, pyramidText: String, perspectivesText: String): Play {
-            val playJson = JSONObject(playText)
-            val charJson = JSONObject(charactersText)
+        fun parse(bookText: String): Play {
+            val book = JSONObject(bookText)
+            val playJson = book.getJSONObject("play")
 
             val scenes = playJson.getJSONArray("scenes").objects().mapIndexed { i, s ->
                 Scene(
@@ -127,7 +204,7 @@ class Play(
                 )
             }
 
-            val characters = charJson.getJSONArray("characters").objects().associate { c ->
+            val characters = book.getJSONArray("characters").objects().associate { c ->
                 val arcObj = c.getJSONObject("arc")
                 c.getString("id") to Character(
                     id = c.getString("id"),
@@ -145,8 +222,43 @@ class Play(
                     quote = c.optString("quote").ifEmpty { null },
                 )
             }
-            return Play(scenes, characters, pyramidText, perspectivesText)
+            return Play(
+                meta = BookMeta.parse(book.getJSONObject("meta")),
+                scenes = scenes,
+                characters = characters,
+                pyramidJson = book.getJSONObject("pyramid"),
+                perspectivesJson = book.getJSONObject("perspectives"),
+            )
         }
+    }
+}
+
+/** A book on the library shelf, read from assets/books/library.json without opening the book. */
+data class LibraryEntry(
+    val id: String,
+    val title: String,
+    val author: String,
+    val genre: String,
+    val year: Int,
+    val cover: Color,
+    val idea: String,
+    val file: String,
+) {
+    companion object {
+        fun parseAll(text: String): List<LibraryEntry> = JSONObject(text).getJSONArray("books").objects().map {
+            LibraryEntry(
+                id = it.getString("id"),
+                title = it.getString("title"),
+                author = it.getString("author"),
+                genre = it.getString("genre"),
+                year = it.getInt("year"),
+                cover = hexColor(it.getString("cover")),
+                idea = it.getString("idea"),
+                file = it.getString("file"),
+            )
+        }
+
+        fun load(context: Context) = parseAll(context.assets.open("books/library.json").bufferedReader().readText())
     }
 }
 
@@ -156,4 +268,12 @@ internal fun JSONArray.strings(): List<String> = List(length()) { getString(it) 
 /** "#RRGGBB" to an opaque colour, without Android's parser so plain JVM tests can load the data. */
 fun hexColor(hex: String): Color = Color(hex.removePrefix("#").toLong(16) or 0xFF000000L)
 
-val ROMAN = listOf("", "I", "II", "III", "IV", "V")
+/** Roman numeral for act and part numbers. */
+fun roman(n: Int): String {
+    var rest = n
+    return buildString {
+        for ((value, digits) in listOf(10 to "X", 9 to "IX", 5 to "V", 4 to "IV", 1 to "I")) {
+            while (rest >= value) { append(digits); rest -= value }
+        }
+    }
+}

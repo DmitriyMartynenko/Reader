@@ -66,18 +66,18 @@ internal fun trapezoid(top: Float, bottom: Float) = GenericShape { size, _ ->
 /** How many items each tier holds, e.g. "15 сцен". */
 fun tierCount(play: Play, tier: Tier): String = when (tier) {
     Tier.Idea -> "1 речення"
-    Tier.Acts -> uaPlural(play.pyramid.acts.size, "акт", "акти", "актів")
-    Tier.Scenes -> uaPlural(play.scenes.size, "сцена", "сцени", "сцен")
+    Tier.Acts -> play.terms.acts(play.pyramid.acts.size)
+    Tier.Scenes -> play.terms.scenes(play.scenes.size)
     Tier.Moments -> uaPlural(play.pyramid.moments.size, "момент", "моменти", "моментів")
-    Tier.Text -> uaPlural(play.scenes.sumOf { s -> s.lines.count { !it.isDirection } }, "репліка", "репліки", "реплік")
+    Tier.Text -> play.terms.lines(play.scenes.sumOf { s -> s.lines.count { !it.isDirection } })
 }
 
 fun tierSubtitle(play: Play, tier: Tier): String = when (tier) {
-    Tier.Idea -> "Уся п'єса в одному реченні"
-    Tier.Acts -> "Історія в ${play.pyramid.acts.size} актах"
-    Tier.Scenes -> "Історія в ${play.scenes.size} сценах"
+    Tier.Idea -> "Увесь твір в одному реченні"
+    Tier.Acts -> "Історія в ${play.pyramid.acts.size} ${play.terms.actsLocative}"
+    Tier.Scenes -> "Історія в ${play.scenes.size} ${play.terms.scenesLocative}"
     Tier.Moments -> "Історія в ${play.pyramid.moments.size} ключових моментах"
-    Tier.Text -> "Повний текст п'єси"
+    Tier.Text -> "Повний текст"
 }
 
 private val DarkInk = Color(0xFF3A0B13)
@@ -110,7 +110,7 @@ fun PyramidDiagram(play: Play, current: Tier, onTier: (Tier) -> Unit, modifier: 
                 contentAlignment = Alignment.Center,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(tier.label, color = ink, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
+                    Text(play.terms.tier(tier), color = ink, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold)
                     Text(tierCount(play, tier), color = ink.copy(alpha = 0.85f), style = MaterialTheme.typography.labelSmall)
                 }
             }
@@ -145,7 +145,7 @@ fun MiniPyramid(layer: Int, selected: Boolean, modifier: Modifier = Modifier) {
 
 /** Bottom navigation: the five tiers of the pyramid. */
 @Composable
-fun RowScope.PyramidNavItems(current: Tier, onTier: (Tier) -> Unit) {
+fun RowScope.PyramidNavItems(terms: Terms, current: Tier, onTier: (Tier) -> Unit) {
     for (tier in Tier.entries) {
         val selected = tier == current
         Column(
@@ -169,7 +169,7 @@ fun RowScope.PyramidNavItems(current: Tier, onTier: (Tier) -> Unit) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                tier.label,
+                terms.tier(tier),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -200,7 +200,7 @@ fun IdeaScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "ІДЕЯ П'ЄСИ",
+            "ІДЕЯ ТВОРУ",
             style = MaterialTheme.typography.labelMedium,
             letterSpacing = 0.15.em,
             color = MaterialTheme.colorScheme.primary,
@@ -247,7 +247,7 @@ fun IdeaScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "Акт ${ROMAN[readingScene.act]} · Сцена ${readingScene.number} · ${play.pyramid.scenes[reading.scene].title}",
+                    "${play.terms.place(readingScene)} · ${play.pyramid.scenes[reading.scene].title}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(10.dp))
@@ -319,7 +319,7 @@ private fun ItemCard(highlighted: Boolean, onClick: () -> Unit, faded: Boolean =
     }
 }
 
-/** "Без Отелло" — marks a card of the story the lens character is not part of. */
+/** "Без Емілії" — marks a card of the story the lens character is not part of. */
 @Composable
 private fun WithoutLabel(lens: Lens) {
     Text(
@@ -386,7 +386,7 @@ fun ActsScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "АКТ ${ROMAN[act.act]}",
+                        "${play.terms.actTitle.uppercase()} ${roman(act.act)}",
                         style = MaterialTheme.typography.labelLarge,
                         letterSpacing = 0.12.em,
                         color = MaterialTheme.colorScheme.primary,
@@ -422,10 +422,10 @@ fun ActsScreen(
                     val seen = moments.count { lens.perception(it.lineId).perceives }
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         lens.phaseAtActEnd(act.act)?.let { PhaseChip(it); Spacer(Modifier.width(8.dp)) }
-                        ZoomHint("у $inScenes з ${scenes.size} сцен · бачить $seen з ${moments.size}")
+                        ZoomHint("у $inScenes з ${scenes.size} ${play.terms.scene[2]} · бачить $seen з ${moments.size}")
                     }
                 } else {
-                    ZoomHint("${uaPlural(scenes.size, "сцена", "сцени", "сцен")} · ${uaPlural(moments.size, "момент", "моменти", "моментів")}")
+                    ZoomHint("${play.terms.scenes(scenes.size)} · ${uaPlural(moments.size, "момент", "моменти", "моментів")}")
                 }
             }
         }
@@ -465,13 +465,13 @@ fun ScenesScreen(
     val readingScene = navigator.readerFocus.scene
     LazyColumn(state = state, contentPadding = padding.plusVertical(8.dp), modifier = Modifier.fillMaxSize()) {
         item(key = "parent") {
-            ParentLine("Акти", "Історія в п'яти кроках: ${pyramid.acts.joinToString(" → ") { it.title }}") {
+            ParentLine(play.terms.actsTier, "Історія по кроках: ${pyramid.acts.joinToString(" → ") { it.title }}") {
                 navigator.go(Tier.Acts)
             }
         }
         items(rows, key = { if (it is SceneRow.Item) "s${it.summary.sceneIndex}" else "a${(it as SceneRow.ActTitle).act.act}" }) { row ->
             when (row) {
-                is SceneRow.ActTitle -> TierGroupTitle("Акт ${ROMAN[row.act.act]} · ${row.act.title}") {
+                is SceneRow.ActTitle -> TierGroupTitle("${play.terms.actTitle} ${roman(row.act.act)} · ${row.act.title}") {
                     navigator.go(Tier.Acts, index.actStart(row.act.act))
                 }
                 is SceneRow.Item -> {
@@ -485,7 +485,7 @@ fun ScenesScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "СЦЕНА ${scene.number}",
+                                "${play.terms.sceneTitle.uppercase()} ${scene.number}",
                                 style = MaterialTheme.typography.labelMedium,
                                 letterSpacing = 0.12.em,
                                 color = MaterialTheme.colorScheme.primary,
@@ -585,7 +585,7 @@ fun MomentsScreen(
     LazyColumn(state = state, contentPadding = padding.plusVertical(8.dp), modifier = Modifier.fillMaxSize()) {
         item(key = "parent") {
             ParentLine(
-                "Сцени",
+                play.terms.scenesTier,
                 if (lens == null) "Кожен момент веде до свого місця в тексті"
                 else "Приглушено — те, чого ${lens.perspective.genitive} не бачить: відсутність, розмови вбік, непритомність",
             ) { navigator.go(Tier.Scenes) }
@@ -594,7 +594,7 @@ fun MomentsScreen(
             when (row) {
                 is MomentRow.SceneTitle -> {
                     val scene = play.scenes[row.summary.sceneIndex]
-                    TierGroupTitle("Акт ${ROMAN[scene.act]} · Сцена ${scene.number} · ${row.summary.title}") {
+                    TierGroupTitle("${play.terms.place(scene)} · ${row.summary.title}") {
                         navigator.go(Tier.Scenes, index.sceneStart(scene.index))
                     }
                 }

@@ -166,13 +166,37 @@ class ScreensTest {
 
     /** [row] is the pre-1.3 saved position (a row of the full text); [line] is the current one. */
     private fun snapApp(tier: Tier, row: Int = readingRow, original: Boolean = false, line: Int? = null, lens: String? = null) {
-        val values = buildMap<String, Any> {
-            put("showOriginal", original)
-            if (line != null) put("line", line) else put("row", row)
-            if (lens != null) put("lens", lens)
+        val prefs = Prefs(FakePrefs(mapOf("showOriginal" to original)))
+        val book = BookPrefs(
+            FakePrefs(
+                buildMap {
+                    if (line != null) put("line", line) else put("row", row)
+                    if (lens != null) put("lens", lens)
+                },
+            ),
+        )
+        paparazzi.snapshot { TestHost { App(play, prefs, book, UpdateController(null, prefs), startTier = tier) } }
+    }
+
+    @Test
+    fun library_shelf() {
+        val prefs = Prefs(null)
+        paparazzi.snapshot {
+            TestHost {
+                LibraryScreen(TestData.shelf, shelfState = { ShelfState(0.38f, true) }, prefs = prefs, updates = UpdateController(null, prefs), onOpen = {})
+            }
         }
-        val prefs = Prefs(FakePrefs(values))
-        paparazzi.snapshot { TestHost { App(play, prefs, UpdateController(null, prefs), startTier = tier) } }
+    }
+
+    @Test
+    fun library_shelfDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        val prefs = Prefs(null)
+        paparazzi.snapshot {
+            TestHost {
+                LibraryScreen(TestData.shelf, shelfState = { ShelfState(0f, false) }, prefs = prefs, updates = UpdateController(null, prefs), onOpen = {})
+            }
+        }
     }
 
     private fun snapSheet(sheet: Sheet, update: Release? = null) {

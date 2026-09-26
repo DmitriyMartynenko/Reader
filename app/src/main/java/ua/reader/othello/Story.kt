@@ -6,15 +6,12 @@ import androidx.compose.runtime.setValue
 import org.json.JSONObject
 
 /**
- * The play as a pyramid: one idea on top, then acts, scenes and key moments,
+ * A book as a pyramid: one idea on top, then acts, scenes and key moments,
  * with the full text as the base. Every tier retells the whole story at its own resolution.
+ * What a book calls its tiers comes from [Terms.tier].
  */
-enum class Tier(val label: String) {
-    Idea("Ідея"),
-    Acts("Акти"),
-    Scenes("Сцени"),
-    Moments("Моменти"),
-    Text("Текст");
+enum class Tier {
+    Idea, Acts, Scenes, Moments, Text;
 
     val up: Tier? get() = entries.getOrNull(ordinal - 1)
     val down: Tier? get() = entries.getOrNull(ordinal + 1)
@@ -37,8 +34,7 @@ class Pyramid(
     fun act(act: Int): ActSummary = acts.first { it.act == act }
 
     companion object {
-        fun parse(text: String, scenes: List<Scene>): Pyramid {
-            val json = JSONObject(text)
+        fun parse(json: JSONObject, scenes: List<Scene>): Pyramid {
             val acts = json.getJSONArray("acts").let { arr ->
                 List(arr.length()) { i ->
                     val a = arr.getJSONObject(i)

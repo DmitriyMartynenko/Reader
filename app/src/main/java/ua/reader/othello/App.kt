@@ -36,7 +36,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
@@ -46,34 +45,37 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 
-/** The app shell: one tier of the pyramid at a time, the tier bar at the bottom, sheets on top. */
+/**
+ * One open book: one tier of its pyramid at a time, the tier bar at the bottom, sheets on top.
+ * Above the book's idea there is only the library, reached with back or the arrow at the top.
+ */
 @OptIn(ExperimentalMaterial3Api::class, FlowPreview::class)
 @Composable
 fun App(
     play: Play,
     prefs: Prefs,
+    book: BookPrefs,
     updates: UpdateController,
     startTier: Tier = if (prefs.startAtIdea) Tier.Idea else Tier.Text,
+    onLibrary: () -> Unit = {},
 ) {
     val index = remember(play) { StoryIndex(play) }
     val navigator = remember {
-        val line = prefs.savedLine?.takeIf(play.lines::containsKey)
-            ?: ReaderLayout(play).focusAt(prefs.legacyRow).line
-        Navigator(startTier, index.lineFocus(line), prefs.lens?.takeIf(play.perspectives::containsKey))
+        val line = book.savedLine?.takeIf(play.lines::containsKey)
+            ?: ReaderLayout(play).focusAt(book.legacyRow).line
+        Navigator(startTier, index.lineFocus(line), book.lens?.takeIf(play.perspectives::containsKey))
     }
     val lens = remember(navigator.lens) { navigator.lens?.let(play.perspectives::get)?.let { Lens(play, it) } }
     val layout = remember(lens) { ReaderLayout(play, lens) }
     // A new lens folds the text differently, so the list starts over at the same place in the story.
-    val savedOffset = remember { intArrayOf(prefs.savedOffset) }
+    val savedOffset = remember { intArrayOf(book.savedOffset) }
     val listState = remember(layout) {
         LazyListState(layout.rowFor(navigator.readerFocus), savedOffset[0]).also { savedOffset[0] = 0 }
     }
-    val scope = rememberCoroutineScope()
     var sheets by remember { mutableStateOf(listOf<Sheet>()) }
     val tier = navigator.tier
 
-    LaunchedEffect(updates) { updates.checkOnLaunch(scope) }
-    LaunchedEffect(navigator.lens) { prefs.updateLens(navigator.lens) }
+    LaunchedEffect(navigator.lens) { book.updateLens(navigator.lens) }
 
     LaunchedEffect(listState, layout) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { navigator.onReaderMoved(layout.focusAt(it)) }
@@ -81,7 +83,10 @@ fun App(
     LaunchedEffect(listState, layout) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .debounce(400)
-            .collect { (row, offset) -> prefs.savePosition(layout.focusAt(row).line, offset) }
+            .collect { (row, offset) ->
+                val focus = layout.focusAt(row)
+                book.savePosition(focus.line, offset, index.progress(focus))
+            }
     }
     // Zooming into the text from a tier opens the text at the chosen place.
     LaunchedEffect(tier, navigator.pendingJump, layout) {
@@ -91,7 +96,7 @@ fun App(
         }
     }
 
-    BackHandler(enabled = tier != Tier.Idea) { navigator.zoomOut() }
+    BackHandler { if (!navigator.zoomOut()) onLibrary() }
 
     fun open(sheet: Sheet) { sheets = sheets + sheet }
     val openProfile: (String, Int) -> Unit = { id, scene -> open(Sheet.Profile(id, scene)) }
@@ -119,7 +124,7 @@ fun App(
                     readingScene = readingScene,
                     scrollBehavior = if (tier == Tier.Text) topScroll else null,
                     updateAvailable = updates.available != null,
-                    onUp = { navigator.zoomOut() },
+                    onUp = { if (!navigator.zoomOut()) onLibrary() },
                     onTitle = { if (tier == Tier.Text) navigator.go(Tier.Scenes) },
                     onOpen = ::open,
                 )
@@ -139,7 +144,7 @@ fun App(
                 contentPadding = PaddingValues(horizontal = 8.dp),
                 scrollBehavior = if (tier == Tier.Text) bottomScroll else null,
             ) {
-                PyramidNavItems(tier) { navigator.go(it) }
+                PyramidNavItems(play.terms, tier) { navigator.go(it) }
             }
         },
         floatingActionButton = {
@@ -213,8 +218,6 @@ fun App(
             updates = updates,
         )
     }
-
-    UpdateDialogs(updates, scope)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -231,10 +234,10 @@ private fun AppTopBar(
     onOpen: (Sheet) -> Unit,
 ) {
     val (title, subtitle) = when (tier) {
-        Tier.Idea -> "Отелло" to "Вільям Шекспір · трагедія"
-        Tier.Text -> "Акт ${ROMAN[readingScene.act]} · Сцена ${readingScene.number}" to readingScene.place
+        Tier.Idea -> play.meta.title to "${play.meta.author} · ${play.meta.genre}"
+        Tier.Text -> play.terms.place(readingScene) to readingScene.place
         Tier.Moments -> "Ключові моменти" to tierSubtitle(play, tier)
-        else -> tier.label to tierSubtitle(play, tier)
+        else -> play.terms.tier(tier) to tierSubtitle(play, tier)
     }
     TopAppBar(
         scrollBehavior = scrollBehavior,
@@ -243,10 +246,11 @@ private fun AppTopBar(
             scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer,
         ),
         navigationIcon = {
-            if (tier != Tier.Idea) {
-                IconButton(onClick = onUp) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "На рівень вище")
-                }
+            IconButton(onClick = onUp) {
+                Icon(
+                    Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = if (tier == Tier.Idea) "До бібліотеки" else "На рівень вище",
+                )
             }
         },
         title = {

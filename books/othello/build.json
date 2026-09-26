@@ -1,0 +1,44 @@
+{
+  "source": {
+    "format": "gutenberg-play",
+    "startAfter": "SCENE: The First Act",
+    "endBefore": "*** END OF THE PROJECT GUTENBERG"
+  },
+  "speakers": {
+    "OTHELLO": "othello", "DESDEMONA": "desdemona", "IAGO": "iago", "CASSIO": "cassio", "EMILIA": "emilia",
+    "RODERIGO": "roderigo", "BRABANTIO": "brabantio", "BIANCA": "bianca", "LODOVICO": "lodovico",
+    "GRATIANO": "gratiano", "MONTANO": "montano", "DUKE": "duke", "CLOWN": "clown",
+    "FIRST SENATOR": "senator1", "SECOND SENATOR": "senator2", "DUKE AND SENATORS": "senators",
+    "OFFICER": "officer", "SAILOR": "sailor", "MESSENGER": "messenger", "HERALD": "herald", "ALL": "all",
+    "FIRST GENTLEMAN": "gentleman1", "SECOND GENTLEMAN": "gentleman2", "THIRD GENTLEMAN": "gentleman3",
+    "GENTLEMEN": "gentlemen", "FIRST MUSICIAN": "musician", "VOICES": "voices"
+  },
+  "presence": {
+    "names": {
+      "Othello": ["othello"], "Desdemona": ["desdemona"], "Iago": ["iago"], "Cassio": ["cassio"],
+      "Emilia": ["emilia"], "Roderigo": ["roderigo"], "Brabantio": ["brabantio"], "Bianca": ["bianca"],
+      "Lodovico": ["lodovico"], "Gratiano": ["gratiano"], "Montano": ["montano"], "Duke": ["duke"],
+      "Clown": ["clown"], "Herald": ["herald"], "Sailor": ["sailor"], "Messenger": ["messenger"],
+      "Senators": ["senator1", "senator2", "senators"], "Officers": ["officer"], "Officer": ["officer"],
+      "Gentlemen": ["gentleman1", "gentleman2", "gentleman3", "gentlemen"],
+      "Gentleman": ["gentleman1", "gentleman2", "gentleman3", "gentlemen"],
+      "Musicians": ["musician"]
+    },
+    "overrides": {
+      "161": {"exit": ["brabantio"], "why": "\"Exeunt Duke, Senators, Officers, &c.\" — Brabantio leaves with the council"},
+      "279": {"keep": ["iago", "roderigo"], "why": "everyone but Iago and Roderigo follows Othello to the castle"},
+      "355": {"to": ["roderigo"], "why": "\"Aside to him\""},
+      "567": {"private": true, "why": "Othello's \"Why did I marry?\" while Iago is leaving"},
+      "604": {"private": true, "why": "Iago watching Othello come in: \"Not poppy, nor mandragora…\""},
+      "805": {"private": true, "why": "Iago's aside as Cassio enters"},
+      "1101": {"private": true, "why": "Roderigo alone at his stand"},
+      "1103": {"private": true, "why": "Iago's soliloquy while Roderigo waits apart"},
+      "1114": {"private": true, "why": "Othello watching the ambush from afar"},
+      "1116": {"private": true, "why": "Othello watching the ambush from afar"},
+      "1118": {"private": true, "why": "Othello watching the ambush from afar"},
+      "1147": {"after": {"unconscious": ["roderigo"]}, "why": "\"O damn'd Iago!\" — his last words"},
+      "1248": {"unconscious": ["desdemona"], "why": "\"Smothers her.\""},
+      "1388": {"dead": ["othello"], "why": "\"Falling upon Desdemona.\""}
+    }
+  }
+}

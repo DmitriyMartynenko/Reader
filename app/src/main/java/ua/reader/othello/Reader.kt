@@ -168,8 +168,8 @@ fun PlayText(
     ) {
         items(layout.rows, key = { it.key }) { row ->
             when (row) {
-                is ReaderRow.ActHeader -> ActHeader(row.scene.act, play.pyramid.act(row.scene.act).title)
-                is ReaderRow.SceneHeader -> SceneHeader(row.scene, play.pyramid.scenes[row.scene.index].title)
+                is ReaderRow.ActHeader -> ActHeader(play.terms, row.scene.act, play.pyramid.act(row.scene.act).title)
+                is ReaderRow.SceneHeader -> SceneHeader(play.terms, row.scene, play.pyramid.scenes[row.scene.index].title)
                 is ReaderRow.Direction -> LineBlock(moments[row.line.id], lens?.eventsByLine?.get(row.line.id), onMoment) {
                     Watching(lens, row.watching, row.runStart) { DirectionRow(play, row.line, prefs, onCharacter) }
                 }
@@ -334,7 +334,7 @@ private fun TheEnd(play: Play, onIdea: () -> Unit) {
         TextButton(onClick = onIdea) { Text("До вершини піраміди") }
         Spacer(Modifier.height(12.dp))
         Text(
-            "Вільям Шекспір · «Отелло, венеційський мавр»\nПереклад українською для цього застосунку",
+            "${play.meta.author} · «${play.meta.fullTitle}»\n${play.meta.credits}",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -343,13 +343,13 @@ private fun TheEnd(play: Play, onIdea: () -> Unit) {
 }
 
 @Composable
-private fun ActHeader(act: Int, title: String) {
+private fun ActHeader(terms: Terms, act: Int, title: String) {
     Column(
         Modifier.fillMaxWidth().padding(top = 40.dp, bottom = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "Акт ${ROMAN[act]}",
+            "${terms.actTitle} ${roman(act)}",
             style = MaterialTheme.typography.headlineMedium,
             fontFamily = FontFamily.Serif,
             color = MaterialTheme.colorScheme.primary,
@@ -367,13 +367,13 @@ private fun ActHeader(act: Int, title: String) {
 }
 
 @Composable
-private fun SceneHeader(scene: Scene, title: String) {
+private fun SceneHeader(terms: Terms, scene: Scene, title: String) {
     Column(
         Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "СЦЕНА ${scene.number}",
+            "${terms.sceneTitle.uppercase()} ${scene.number}",
             style = MaterialTheme.typography.labelMedium,
             letterSpacing = 0.15.em,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

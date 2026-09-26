@@ -1,9 +1,8 @@
-// Checks that every key moment in pyramid.json points at a line of its own scene
+// Checks that every key moment of a book's pyramid points at a line of its own scene
 // and prints the start of that line so the link can be eyeballed.
-const path = require('path');
-const assets = path.join(__dirname, '../app/src/main/assets');
-const play = require(path.join(assets, 'play.json'));
-const pyramid = require(path.join(assets, 'pyramid.json'));
+//   node tools/check-pyramid.js othello
+const { loadBook } = require('./book');
+const { play, pyramid } = loadBook(process.argv[2]);
 
 let errors = 0;
 let total = 0;

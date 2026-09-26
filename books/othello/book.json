@@ -1,0 +1,24 @@
+{
+  "id": "othello",
+  "title": "Отелло",
+  "fullTitle": "Отелло, венеційський мавр",
+  "author": "Вільям Шекспір",
+  "genre": "трагедія",
+  "year": 1604,
+  "cover": "#5C1A24",
+  "originalLabel": "англійський оригінал",
+  "originalHint": "Текст Шекспіра під кожною реплікою",
+  "credits": "Переклад українською для цього застосунку. Оригінал — Project Gutenberg #1531.",
+  "terms": {
+    "act": ["акт", "акти", "актів"],
+    "actTitle": "Акт",
+    "actGenitive": "акту",
+    "actsTier": "Акти",
+    "actsLocative": "актах",
+    "scene": ["сцена", "сцени", "сцен"],
+    "sceneTitle": "Сцена",
+    "scenesTier": "Сцени",
+    "scenesLocative": "сценах",
+    "line": ["репліка", "репліки", "реплік"]
+  }
+}

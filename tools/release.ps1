@@ -30,7 +30,8 @@ if (-not $mapped) { subst $drive $root }
 try {
     Push-Location "$drive\"
     if (-not $env:JAVA_HOME) { $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot" }
-    Run { node tools\build-data.js }
+    # Every book in books/ is packed again, which also refreshes the library index.
+    foreach ($book in Get-ChildItem books -Directory) { Run { node tools\build-book.js $book.Name } }
     Run { .\gradlew.bat testDebugUnitTest assembleRelease --console=plain -q }
 } finally {
     Pop-Location

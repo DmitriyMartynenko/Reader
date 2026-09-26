@@ -276,7 +276,7 @@ fun LifeLine(play: Play, lens: Lens, readingScene: Int, onScene: (Int) -> Unit) 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for ((act, scenes) in acts) {
                 Text(
-                    ROMAN[act],
+                    roman(act),
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Serif,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -329,7 +329,7 @@ fun LifeEvents(play: Play, lens: Lens, onEvent: (Int) -> Unit) {
                 Box(Modifier.size(10.dp).background(color, CircleShape))
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "${ROMAN[scene.act]}.${scene.number}",
+                    "${roman(scene.act)}.${scene.number}",
                     style = MaterialTheme.typography.labelMedium,
                     fontFamily = FontFamily.Serif,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -406,14 +406,14 @@ fun LensPyramidDiagram(
         for (tier in Tier.entries) {
             val (fraction, label) = when (tier) {
                 Tier.Idea -> 1f to if (timeline) {
-                    "${ROMAN[firstScene.act]}.${firstScene.number} — ${ROMAN[lastScene.act]}.${lastScene.number}"
+                    "${roman(firstScene.act)}.${firstScene.number} — ${roman(lastScene.act)}.${lastScene.number}"
                 } else {
                     "власна ідея"
                 }
-                Tier.Acts -> lens.presentActs.size / 5f to "${lens.presentActs.size} з ${play.pyramid.acts.size}"
+                Tier.Acts -> lens.presentActs.size / play.pyramid.acts.size.toFloat() to "${lens.presentActs.size} з ${play.pyramid.acts.size}"
                 Tier.Scenes -> lens.presentScenes.size / play.scenes.size.toFloat() to "${lens.presentScenes.size} з ${play.scenes.size}"
                 Tier.Moments -> lens.seenMoments / play.pyramid.moments.size.toFloat() to "${lens.seenMoments} з ${play.pyramid.moments.size}"
-                Tier.Text -> lens.heardSpeeches / totalSpeeches.toFloat() to "${lens.heardSpeeches} з $totalSpeeches реплік"
+                Tier.Text -> lens.heardSpeeches / totalSpeeches.toFloat() to "${lens.heardSpeeches} з ${play.terms.lines(totalSpeeches)}"
             }
             val spans = remember(lens, tier) { lens.spans(tier, axis) }
             val i = tier.ordinal
@@ -488,7 +488,7 @@ fun LensPyramidDiagram(
                     ),
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    Text(tier.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Text(play.terms.tier(tier), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                     Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                 }
             }
@@ -498,7 +498,7 @@ fun LensPyramidDiagram(
             Row(Modifier.fillMaxWidth()) {
                 for ((act, scenes) in play.scenes.groupBy { it.act }) {
                     Text(
-                        ROMAN[act],
+                        roman(act),
                         style = MaterialTheme.typography.labelMedium,
                         fontFamily = FontFamily.Serif,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -561,7 +561,7 @@ fun LensIdeaScreen(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            "Ідея п'єси: «${play.pyramid.idea}»",
+            "Ідея твору: «${play.pyramid.idea}»",
             style = MaterialTheme.typography.bodySmall,
             fontStyle = FontStyle.Italic,
             textAlign = TextAlign.Center,
@@ -605,7 +605,7 @@ fun LensIdeaScreen(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 Text(
-                    "Акт ${ROMAN[readingScene.act]} · Сцена ${readingScene.number} · ${play.pyramid.scenes[reading.scene].title}",
+                    "${play.terms.place(readingScene)} · ${play.pyramid.scenes[reading.scene].title}",
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(10.dp))

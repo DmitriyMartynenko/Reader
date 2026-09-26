@@ -33,8 +33,7 @@ class Perspective(
     val events: List<LifeEvent>,
 ) {
     companion object {
-        fun parseAll(text: String, scenes: List<Scene>): Map<String, Perspective> {
-            val json = JSONObject(text)
+        fun parseAll(json: JSONObject, scenes: List<Scene>): Map<String, Perspective> {
             val tonesJson = json.getJSONObject("tones")
             val tones = tonesJson.keys().asSequence().associateWith { key ->
                 val t = tonesJson.getJSONObject(key)

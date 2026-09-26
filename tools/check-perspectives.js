@@ -1,9 +1,8 @@
-// Checks perspectives.json against the text and the presence data from build-data.js:
+// Checks a book's perspectives against its text and presence data:
 // first-person scenes only where the character is on stage, and events that point at real lines.
-const path = require('path');
-const assets = path.join(__dirname, '../app/src/main/assets');
-const play = require(path.join(assets, 'play.json'));
-const { perspectives, tones } = require(path.join(assets, 'perspectives.json'));
+//   node tools/check-perspectives.js othello
+const { loadBook } = require('./book');
+const { play, perspectives: { perspectives, tones } } = loadBook(process.argv[2]);
 
 const lines = new Map();
 for (const s of play.scenes) for (const it of s.items) lines.set(it.id, { ...it, key: `${s.act}.${s.scene}` });

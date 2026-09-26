@@ -152,7 +152,7 @@ private fun CharacterRow(character: Character, detail: String, onClick: () -> Un
 private fun CastSheet(play: Play, scene: Scene, canGoBack: Boolean, onBack: () -> Unit, onOpen: (Sheet) -> Unit) {
     SheetTitle(
         "Хто в цій сцені",
-        "Акт ${ROMAN[scene.act]}, сцена ${scene.number} · ${scene.place}",
+        "${play.terms.place(scene)} · ${scene.place}",
         canGoBack, onBack,
     )
     val cast = play.speakersOf(scene).filter { it.main || it.arc.isNotEmpty() || it.id in MINOR_WITH_ROLE }
@@ -167,7 +167,7 @@ private fun CastSheet(play: Play, scene: Scene, canGoBack: Boolean, onBack: () -
         )
     }
     TextButton(onClick = { onOpen(Sheet.AllCharacters) }, modifier = Modifier.padding(horizontal = 12.dp)) {
-        Text("Усі персонажі п'єси")
+        Text("Усі персонажі твору")
     }
 }
 
@@ -256,7 +256,7 @@ private fun ProfileSheet(
     if (c.arc.isNotEmpty()) {
         val known = c.arc.filterKeys { it <= scene.act }.toSortedMap()
         val later = c.arc.filterKeys { it > scene.act }.toSortedMap()
-        Section("Що відомо на цей момент", "до акту ${ROMAN[scene.act]} включно") {
+        Section("Що відомо на цей момент", "до ${play.terms.actGenitive} ${roman(scene.act)} включно") {
             if (known.isEmpty()) {
                 Text(
                     "Цей персонаж ще не з'являвся на сцені.",
@@ -324,9 +324,9 @@ private fun ProfileSheet(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Реплік у п'єсі: ${appearance.lines}", style = MaterialTheme.typography.bodyMedium)
+                Text("${play.terms.line[2].replaceFirstChar(Char::uppercase)} у творі: ${appearance.lines}", style = MaterialTheme.typography.bodyMedium)
                 Text(
-                    "Перша репліка: акт ${ROMAN[first.act]}, сцена ${first.number}",
+                    "Уперше: ${play.terms.place(first)}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -363,7 +363,7 @@ private fun ArcEntry(act: Int, text: String, accent: androidx.compose.ui.graphic
                 .background(accent.copy(alpha = 0.14f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(ROMAN[act], color = accent, style = MaterialTheme.typography.labelLarge, fontFamily = FontFamily.Serif)
+            Text(roman(act), color = accent, style = MaterialTheme.typography.labelLarge, fontFamily = FontFamily.Serif)
         }
         Spacer(Modifier.width(12.dp))
         Text(
@@ -376,7 +376,7 @@ private fun ArcEntry(act: Int, text: String, accent: androidx.compose.ui.graphic
 }
 
 @Composable
-private fun SettingsSheet(prefs: Prefs, updates: UpdateController) {
+fun SettingsSheet(prefs: Prefs, updates: UpdateController) {
     SheetTitle("Налаштування читання")
     Column(Modifier.padding(horizontal = 24.dp)) {
         Text("Розмір шрифту: ${prefs.fontSize.roundToInt()}", style = MaterialTheme.typography.bodyMedium)
@@ -387,14 +387,14 @@ private fun SettingsSheet(prefs: Prefs, updates: UpdateController) {
             steps = 13,
         )
         Text(
-            "Так виглядатиме текст п'єси.",
+            "Так виглядатиме текст.",
             fontFamily = FontFamily.Serif,
             fontSize = prefs.fontSize.sp,
             modifier = Modifier.padding(bottom = 16.dp),
         )
         SettingSwitch(
-            "Показувати англійський оригінал",
-            "Текст Шекспіра під кожною реплікою",
+            "Показувати оригінал",
+            "Текст мовою оригіналу під кожною реплікою",
             prefs.showOriginal,
             prefs::updateShowOriginal,
         )
@@ -406,7 +406,7 @@ private fun SettingsSheet(prefs: Prefs, updates: UpdateController) {
         )
         SettingSwitch(
             "Починати з вершини піраміди",
-            "Під час запуску показувати ідею п'єси, а не текст",
+            "Під час запуску книги показувати її ідею, а не текст",
             prefs.startAtIdea,
             prefs::updateStartAtIdea,
         )
