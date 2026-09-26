@@ -1,0 +1,22 @@
+Cyprus. A Room in the Castle
+
+#466 [D]
+Enter Othello, Iago and Gentlemen.
+
+#467 OTHELLO
+These letters give, Iago, to the pilot,
+And by him do my duties to the senate.
+That done, I will be walking on the works,
+Repair there to me.
+
+#468 IAGO
+Well, my good lord, I’ll do’t.
+
+#469 OTHELLO
+This fortification, gentlemen, shall we see’t?
+
+#470 GENTLEMEN
+We’ll wait upon your lordship.
+
+#471 [D]
+[_Exeunt._]

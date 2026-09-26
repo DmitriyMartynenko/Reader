@@ -1,0 +1,10 @@
+.gradle/
+build/
+app/build/
+local.properties
+.idea/
+*.iml
+dist/
+*.apk
+# Signing key: never publish it. Keep a private backup — losing it means users must reinstall.
+keystore/

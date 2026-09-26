@@ -1,0 +1,202 @@
+Venice. Another street
+
+#52 [D]
+Enter Othello, Iago and Attendants with torches.
+
+#53 IAGO
+Though in the trade of war I have slain men,
+Yet do I hold it very stuff o’ the conscience
+To do no contriv’d murder; I lack iniquity
+Sometimes to do me service: nine or ten times
+I had thought to have yerk’d him here under the ribs.
+
+#54 OTHELLO
+’Tis better as it is.
+
+#55 IAGO
+Nay, but he prated,
+And spoke such scurvy and provoking terms
+Against your honour,
+That with the little godliness I have,
+I did full hard forbear him. But I pray you, sir,
+Are you fast married? Be assur’d of this,
+That the magnifico is much belov’d
+And hath in his effect a voice potential
+As double as the duke’s; he will divorce you,
+Or put upon you what restraint and grievance
+The law (with all his might to enforce it on)
+Will give him cable.
+
+#56 OTHELLO
+Let him do his spite;
+My services, which I have done the signiory,
+Shall out-tongue his complaints. ’Tis yet to know,—
+Which, when I know that boasting is an honour,
+I shall promulgate,—I fetch my life and being
+From men of royal siege. And my demerits
+May speak unbonneted to as proud a fortune
+As this that I have reach’d. For know, Iago,
+But that I love the gentle Desdemona,
+I would not my unhoused free condition
+Put into circumscription and confine
+For the sea’s worth. But look, what lights come yond?
+
+#57 IAGO
+Those are the raised father and his friends:
+You were best go in.
+
+#58 OTHELLO
+Not I; I must be found.
+My parts, my title, and my perfect soul
+Shall manifest me rightly. Is it they?
+
+#59 IAGO
+By Janus, I think no.
+
+#60 [D]
+Enter Cassio and Officers with torches.
+
+#61 OTHELLO
+The servants of the duke and my lieutenant.
+The goodness of the night upon you, friends!
+What is the news?
+
+#62 CASSIO
+The duke does greet you, general,
+And he requires your haste-post-haste appearance
+Even on the instant.
+
+#63 OTHELLO
+What is the matter, think you?
+
+#64 CASSIO
+Something from Cyprus, as I may divine.
+It is a business of some heat. The galleys
+Have sent a dozen sequent messengers
+This very night at one another’s heels;
+And many of the consuls, rais’d and met,
+Are at the duke’s already. You have been hotly call’d for,
+When, being not at your lodging to be found,
+The senate hath sent about three several quests
+To search you out.
+
+#65 OTHELLO
+’Tis well I am found by you.
+I will but spend a word here in the house,
+And go with you.
+
+#66 [D]
+[_Exit._]
+
+#67 CASSIO
+Ancient, what makes he here?
+
+#68 IAGO
+Faith, he tonight hath boarded a land carrack:
+If it prove lawful prize, he’s made forever.
+
+#69 CASSIO
+I do not understand.
+
+#70 IAGO
+He’s married.
+
+#71 CASSIO
+To who?
+
+#72 [D]
+Enter Othello.
+
+#73 IAGO
+Marry to—Come, captain, will you go?
+
+#74 OTHELLO
+Have with you.
+
+#75 CASSIO
+Here comes another troop to seek for you.
+
+#76 [D]
+Enter Brabantio, Roderigo and Officers with torches and weapons.
+
+#77 IAGO
+It is Brabantio. General, be advis’d,
+He comes to bad intent.
+
+#78 OTHELLO
+Holla, stand there!
+
+#79 RODERIGO
+Signior, it is the Moor.
+
+#80 BRABANTIO
+Down with him, thief!
+
+#81 [D]
+[_They draw on both sides._]
+
+#82 IAGO
+You, Roderigo! Come, sir, I am for you.
+
+#83 OTHELLO
+Keep up your bright swords, for the dew will rust them.
+Good signior, you shall more command with years
+Than with your weapons.
+
+#84 BRABANTIO
+O thou foul thief, where hast thou stow’d my daughter?
+Damn’d as thou art, thou hast enchanted her,
+For I’ll refer me to all things of sense,
+(If she in chains of magic were not bound)
+Whether a maid so tender, fair, and happy,
+So opposite to marriage, that she shunn’d
+The wealthy curled darlings of our nation,
+Would ever have, to incur a general mock,
+Run from her guardage to the sooty bosom
+Of such a thing as thou—to fear, not to delight.
+Judge me the world, if ’tis not gross in sense,
+That thou hast practis’d on her with foul charms,
+Abus’d her delicate youth with drugs or minerals
+That weakens motion. I’ll have’t disputed on;
+’Tis probable, and palpable to thinking.
+I therefore apprehend and do attach thee
+For an abuser of the world, a practiser
+Of arts inhibited and out of warrant.—
+Lay hold upon him, if he do resist,
+Subdue him at his peril.
+
+#85 OTHELLO
+Hold your hands,
+Both you of my inclining and the rest:
+Were it my cue to fight, I should have known it
+Without a prompter. Where will you that I go
+To answer this your charge?
+
+#86 BRABANTIO
+To prison, till fit time
+Of law and course of direct session
+Call thee to answer.
+
+#87 OTHELLO
+What if I do obey?
+How may the duke be therewith satisfied,
+Whose messengers are here about my side,
+Upon some present business of the state,
+To bring me to him?
+
+#88 OFFICER
+’Tis true, most worthy signior,
+The duke’s in council, and your noble self,
+I am sure is sent for.
+
+#89 BRABANTIO
+How? The duke in council?
+In this time of the night? Bring him away;
+Mine’s not an idle cause. The duke himself,
+Or any of my brothers of the state,
+Cannot but feel this wrong as ’twere their own.
+For if such actions may have passage free,
+Bond-slaves and pagans shall our statesmen be.
+
+#90 [D]
+[_Exeunt._]

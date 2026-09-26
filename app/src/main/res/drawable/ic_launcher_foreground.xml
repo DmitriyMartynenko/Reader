@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Handkerchief: a folded square cloth -->
+    <path
+        android:fillColor="#F4E9D8"
+        android:pathData="M34,36 L74,32 L76,72 L36,76 Z" />
+    <path
+        android:fillColor="#E2D2B8"
+        android:pathData="M34,36 L74,32 L55,54 Z" />
+    <!-- Strawberries embroidered on it -->
+    <path
+        android:fillColor="#C23B3B"
+        android:pathData="M48,58 C44,58 43,62 45,65 C46,67 48,69 49,70 C50,69 52,67 53,65 C55,62 53,58 49,58 Z" />
+    <path
+        android:fillColor="#C23B3B"
+        android:pathData="M60,50 C57,50 56,53 57.5,55.5 C58.3,57 59.5,58.2 60.5,59 C61.5,58.2 62.7,57 63.5,55.5 C65,53 63.5,50 60.5,50 Z" />
+    <path
+        android:fillColor="#3E7A3A"
+        android:pathData="M46,57 L49,55 L52,57 L49,58.5 Z M58,49 L60.5,47.5 L63,49 L60.5,50.2 Z" />
+</vector>

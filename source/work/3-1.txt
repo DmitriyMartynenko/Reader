@@ -1,0 +1,141 @@
+Cyprus. Before the Castle
+
+#430 [D]
+Enter Cassio and some Musicians.
+
+#431 CASSIO
+Masters, play here, I will content your pains,
+Something that’s brief; and bid “Good morrow, general.”
+
+#432 [D]
+[_Music._]
+
+#433 [D]
+Enter Clown.
+
+#434 CLOWN
+Why, masters, have your instruments been in Naples, that they speak i’
+the nose thus?
+
+#435 FIRST MUSICIAN
+How, sir, how?
+
+#436 CLOWN
+Are these, I pray you, wind instruments?
+
+#437 FIRST MUSICIAN
+Ay, marry, are they, sir.
+
+#438 CLOWN
+O, thereby hangs a tail.
+
+#439 FIRST MUSICIAN
+Whereby hangs a tale, sir?
+
+#440 CLOWN
+Marry, sir, by many a wind instrument that I know. But, masters, here’s
+money for you: and the general so likes your music, that he desires
+you, for love’s sake, to make no more noise with it.
+
+#441 FIRST MUSICIAN
+Well, sir, we will not.
+
+#442 CLOWN
+If you have any music that may not be heard, to’t again. But, as they
+say, to hear music the general does not greatly care.
+
+#443 FIRST MUSICIAN
+We have none such, sir.
+
+#444 CLOWN
+Then put up your pipes in your bag, for I’ll away. Go, vanish into air,
+away!
+
+#445 [D]
+[_Exeunt Musicians._]
+
+#446 CASSIO
+Dost thou hear, mine honest friend?
+
+#447 CLOWN
+No, I hear not your honest friend. I hear you.
+
+#448 CASSIO
+Prithee, keep up thy quillets. There’s a poor piece of gold for thee:
+if the gentlewoman that attends the general’s wife be stirring, tell
+her there’s one Cassio entreats her a little favour of speech. Wilt
+thou do this?
+
+#449 CLOWN
+She is stirring, sir; if she will stir hither, I shall seem to notify
+unto her.
+
+#450 CASSIO
+Do, good my friend.
+
+#451 [D]
+[_Exit Clown._]
+
+#452 [D]
+Enter Iago.
+
+#453 CASSIO
+In happy time, Iago.
+
+#454 IAGO
+You have not been a-bed, then?
+
+#455 CASSIO
+Why, no. The day had broke
+Before we parted. I have made bold, Iago,
+To send in to your wife. My suit to her
+Is, that she will to virtuous Desdemona
+Procure me some access.
+
+#456 IAGO
+I’ll send her to you presently,
+And I’ll devise a mean to draw the Moor
+Out of the way, that your converse and business
+May be more free.
+
+#457 CASSIO
+I humbly thank you for’t.
+
+#458 [D]
+[_Exit Iago._]
+
+#459 CASSIO
+I never knew
+A Florentine more kind and honest.
+
+#460 [D]
+Enter Emilia.
+
+#461 EMILIA
+Good morrow, good lieutenant; I am sorry
+For your displeasure, but all will sure be well.
+The general and his wife are talking of it,
+And she speaks for you stoutly: the Moor replies
+That he you hurt is of great fame in Cyprus
+And great affinity, and that in wholesome wisdom
+He might not but refuse you; but he protests he loves you
+And needs no other suitor but his likings
+To take the safest occasion by the front
+To bring you in again.
+
+#462 CASSIO
+Yet, I beseech you,
+If you think fit, or that it may be done,
+Give me advantage of some brief discourse
+With Desdemona alone.
+
+#463 EMILIA
+Pray you, come in.
+I will bestow you where you shall have time
+To speak your bosom freely.
+
+#464 CASSIO
+I am much bound to you.
+
+#465 [D]
+[_Exeunt._]

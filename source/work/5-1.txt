@@ -1,0 +1,353 @@
+Cyprus. A Street
+
+#1096 [D]
+Enter Iago and Roderigo.
+
+#1097 IAGO
+Here, stand behind this bulk. Straight will he come.
+Wear thy good rapier bare, and put it home.
+Quick, quick, fear nothing; I’ll be at thy elbow.
+It makes us, or it mars us, think on that,
+And fix most firm thy resolution.
+
+#1098 RODERIGO
+Be near at hand, I may miscarry in ’t.
+
+#1099 IAGO
+Here, at thy hand. Be bold, and take thy stand.
+
+#1100 [D]
+[_Retires to a little distance._]
+
+#1101 RODERIGO
+I have no great devotion to the deed;
+And yet he hath given me satisfying reasons.
+’Tis but a man gone. Forth, my sword; he dies.
+
+#1102 [D]
+[_Goes to his stand._]
+
+#1103 IAGO
+I have rubb’d this young quat almost to the sense,
+And he grows angry. Now, whether he kill Cassio,
+Or Cassio him, or each do kill the other,
+Every way makes my gain. Live Roderigo,
+He calls me to a restitution large
+Of gold and jewels that I bobb’d from him,
+As gifts to Desdemona.
+It must not be. If Cassio do remain,
+He hath a daily beauty in his life
+That makes me ugly. And besides, the Moor
+May unfold me to him; there stand I in much peril.
+No, he must die. But so, I hear him coming.
+
+#1104 [D]
+Enter Cassio.
+
+#1105 RODERIGO
+I know his gait; ’tis he. Villain, thou diest!
+
+#1106 [D]
+[_Rushes out, and makes a pass at Cassio._]
+
+#1107 CASSIO
+That thrust had been mine enemy indeed,
+But that my coat is better than thou know’st.
+I will make proof of thine.
+
+#1108 [D]
+[_Draws, and wounds Roderigo._]
+
+#1109 RODERIGO
+O, I am slain!
+
+#1110 [D]
+[_Iago rushes from his post, cuts Cassio behind in the leg, and exit._]
+
+#1111 CASSIO
+I am maim’d forever. Help, ho! murder, murder!
+
+#1112 [D]
+[_Falls._]
+
+#1113 [D]
+Enter Othello.
+
+#1114 OTHELLO
+The voice of Cassio. Iago keeps his word.
+
+#1115 RODERIGO
+O, villain that I am!
+
+#1116 OTHELLO
+It is even so.
+
+#1117 CASSIO
+O, help, ho! light! a surgeon!
+
+#1118 OTHELLO
+’Tis he. O brave Iago, honest and just,
+That hast such noble sense of thy friend’s wrong!
+Thou teachest me,—minion, your dear lies dead,
+And your unbless’d fate hies. Strumpet, I come!
+Forth of my heart those charms, thine eyes, are blotted;
+Thy bed, lust-stain’d, shall with lust’s blood be spotted.
+
+#1119 [D]
+[_Exit._]
+
+#1120 [D]
+Enter Lodovico and Gratiano.
+
+#1121 CASSIO
+What, ho! No watch? No passage? murder, murder!
+
+#1122 GRATIANO
+’Tis some mischance; the cry is very direful.
+
+#1123 CASSIO
+O, help!
+
+#1124 LODOVICO
+Hark!
+
+#1125 RODERIGO
+O wretched villain!
+
+#1126 LODOVICO
+Two or three groan. It is a heavy night.
+These may be counterfeits. Let’s think’t unsafe
+To come in to the cry without more help.
+
+#1127 RODERIGO
+Nobody come? Then shall I bleed to death.
+
+#1128 [D]
+Enter Iago with a light.
+
+#1129 LODOVICO
+Hark!
+
+#1130 GRATIANO
+Here’s one comes in his shirt, with light and weapons.
+
+#1131 IAGO
+Who’s there? Whose noise is this that cries on murder?
+
+#1132 LODOVICO
+We do not know.
+
+#1133 IAGO
+Did not you hear a cry?
+
+#1134 CASSIO
+Here, here! for heaven’s sake, help me!
+
+#1135 IAGO
+What’s the matter?
+
+#1136 GRATIANO
+This is Othello’s ancient, as I take it.
+
+#1137 LODOVICO
+The same indeed, a very valiant fellow.
+
+#1138 IAGO
+What are you here that cry so grievously?
+
+#1139 CASSIO
+Iago? O, I am spoil’d, undone by villains!
+Give me some help.
+
+#1140 IAGO
+O me, lieutenant! What villains have done this?
+
+#1141 CASSIO
+I think that one of them is hereabout,
+And cannot make away.
+
+#1142 IAGO
+O treacherous villains!
+[_To Lodovico and Gratiano._] What are you there?
+Come in and give some help.
+
+#1143 RODERIGO
+O, help me here!
+
+#1144 CASSIO
+That’s one of them.
+
+#1145 IAGO
+O murderous slave! O villain!
+
+#1146 [D]
+[_Stabs Roderigo._]
+
+#1147 RODERIGO
+O damn’d Iago! O inhuman dog!
+
+#1148 IAGO
+Kill men i’ the dark! Where be these bloody thieves?
+How silent is this town! Ho! murder! murder!
+What may you be? Are you of good or evil?
+
+#1149 LODOVICO
+As you shall prove us, praise us.
+
+#1150 IAGO
+Signior Lodovico?
+
+#1151 LODOVICO
+He, sir.
+
+#1152 IAGO
+I cry you mercy. Here’s Cassio hurt by villains.
+
+#1153 GRATIANO
+Cassio!
+
+#1154 IAGO
+How is’t, brother?
+
+#1155 CASSIO
+My leg is cut in two.
+
+#1156 IAGO
+Marry, heaven forbid!
+Light, gentlemen, I’ll bind it with my shirt.
+
+#1157 [D]
+Enter Bianca.
+
+#1158 BIANCA
+What is the matter, ho? Who is’t that cried?
+
+#1159 IAGO
+Who is’t that cried?
+
+#1160 BIANCA
+O my dear Cassio, my sweet Cassio! O Cassio, Cassio, Cassio!
+
+#1161 IAGO
+O notable strumpet! Cassio, may you suspect
+Who they should be that have thus mangled you?
+
+#1162 CASSIO
+No.
+
+#1163 GRATIANO
+I am sorry to find you thus; I have been to seek you.
+
+#1164 IAGO
+Lend me a garter. So.—O, for a chair,
+To bear him easily hence!
+
+#1165 BIANCA
+Alas, he faints! O Cassio, Cassio, Cassio!
+
+#1166 IAGO
+Gentlemen all, I do suspect this trash
+To be a party in this injury.
+Patience awhile, good Cassio. Come, come;
+Lend me a light. Know we this face or no?
+Alas, my friend and my dear countryman
+Roderigo? No. Yes, sure; O heaven! Roderigo.
+
+#1167 GRATIANO
+What, of Venice?
+
+#1168 IAGO
+Even he, sir. Did you know him?
+
+#1169 GRATIANO
+Know him? Ay.
+
+#1170 IAGO
+Signior Gratiano? I cry you gentle pardon.
+These bloody accidents must excuse my manners,
+That so neglected you.
+
+#1171 GRATIANO
+I am glad to see you.
+
+#1172 IAGO
+How do you, Cassio? O, a chair, a chair!
+
+#1173 GRATIANO
+Roderigo!
+
+#1174 IAGO
+He, he, ’tis he.
+
+#1175 [D]
+[_A chair brought in._]
+
+#1176 IAGO
+O, that’s well said; the chair.
+Some good man bear him carefully from hence,
+I’ll fetch the general’s surgeon. [_To Bianca_] For you, mistress,
+Save you your labour. He that lies slain here, Cassio,
+Was my dear friend. What malice was between you?
+
+#1177 CASSIO
+None in the world. Nor do I know the man.
+
+#1178 IAGO
+[_To Bianca._] What, look you pale?—O, bear him out o’ the air.
+
+#1179 [D]
+[_Cassio and Roderigo are borne off._]
+
+#1180 IAGO
+Stay you, good gentlemen.—Look you pale, mistress?
+Do you perceive the gastness of her eye?
+Nay, if you stare, we shall hear more anon.
+Behold her well. I pray you, look upon her.
+Do you see, gentlemen? Nay, guiltiness will speak
+Though tongues were out of use.
+
+#1181 [D]
+Enter Emilia.
+
+#1182 EMILIA
+’Las, what’s the matter? What’s the matter, husband?
+
+#1183 IAGO
+Cassio hath here been set on in the dark
+By Roderigo, and fellows that are ’scap’d.
+He’s almost slain, and Roderigo dead.
+
+#1184 EMILIA
+Alas, good gentleman! alas, good Cassio!
+
+#1185 IAGO
+This is the fruit of whoring. Prithee, Emilia,
+Go know of Cassio where he supp’d tonight.
+What, do you shake at that?
+
+#1186 BIANCA
+He supp’d at my house, but I therefore shake not.
+
+#1187 IAGO
+O, did he so? I charge you go with me.
+
+#1188 EMILIA
+Fie, fie upon thee, strumpet!
+
+#1189 BIANCA
+I am no strumpet, but of life as honest
+As you that thus abuse me.
+
+#1190 EMILIA
+As I? Foh! fie upon thee!
+
+#1191 IAGO
+Kind gentlemen, let’s go see poor Cassio dress’d.
+Come, mistress, you must tell’s another tale.
+Emilia, run you to the citadel,
+And tell my lord and lady what hath happ’d.
+Will you go on afore? [_Aside._] This is the night
+That either makes me or fordoes me quite.
+
+#1192 [D]
+[_Exeunt._]
