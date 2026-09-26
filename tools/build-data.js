@@ -1,6 +1,7 @@
 // Merges the parsed English text with the Ukrainian translation into app/src/main/assets/play.json.
 const fs = require('fs');
 const path = require('path');
+const { computePresence } = require('./presence');
 
 const root = path.join(__dirname, '..');
 const scenes = JSON.parse(fs.readFileSync(path.join(root, 'source/othello_en.json'), 'utf8'));
@@ -56,6 +57,14 @@ for (const s of scenes) {
 }
 
 if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
+
+// Who perceives each line: h = hears/sees it, s = watches without hearing, u = on stage but
+// unconscious, z = asleep, x = on stage but shut out of an aside.
+const unknownDirections = computePresence(result);
+if (unknownDirections.length) {
+  console.error('Stage directions the presence rules do not understand:\n' + unknownDirections.join('\n'));
+  process.exit(1);
+}
 
 const out = path.join(root, 'app/src/main/assets/play.json');
 fs.mkdirSync(path.dirname(out), { recursive: true });

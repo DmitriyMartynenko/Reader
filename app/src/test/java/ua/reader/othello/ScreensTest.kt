@@ -75,6 +75,36 @@ class ScreensTest {
     }
 
     @Test
+    fun lens0_ideaOthello() = snapApp(Tier.Idea, lens = "othello")
+
+    @Test
+    fun lens0_ideaIagoDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Idea, lens = "iago")
+    }
+
+    @Test
+    fun lens1_actsEmilia() = snapApp(Tier.Acts, line = 224, lens = "emilia")
+
+    @Test
+    fun lens2_scenesDesdemona() = snapApp(Tier.Scenes, lens = "desdemona")
+
+    @Test
+    fun lens3_momentsOthello() = snapApp(Tier.Moments, lens = "othello")
+
+    @Test
+    fun lens4_textOthelloInTrance() = snapApp(Tier.Text, line = 779, lens = "othello")
+
+    @Test
+    fun lens4_textOthelloHiding() = snapApp(Tier.Text, line = 803, lens = "othello")
+
+    @Test
+    fun lens4_textDesdemonaAsleep() = snapApp(Tier.Text, line = 1193, lens = "desdemona")
+
+    @Test
+    fun sheet_lensChooser() = snapSheet(Sheet.Lens)
+
+    @Test
     fun sheet_profileIago() = snapSheet(Sheet.Profile("iago"))
 
     @Test
@@ -107,8 +137,14 @@ class ScreensTest {
         apkSize = 1_300_000,
     )
 
-    private fun snapApp(tier: Tier, row: Int = readingRow, original: Boolean = false) {
-        val prefs = Prefs(FakePrefs(mapOf("row" to row, "showOriginal" to original)))
+    /** [row] is the pre-1.3 saved position (a row of the full text); [line] is the current one. */
+    private fun snapApp(tier: Tier, row: Int = readingRow, original: Boolean = false, line: Int? = null, lens: String? = null) {
+        val values = buildMap<String, Any> {
+            put("showOriginal", original)
+            if (line != null) put("line", line) else put("row", row)
+            if (lens != null) put("lens", lens)
+        }
+        val prefs = Prefs(FakePrefs(values))
         paparazzi.snapshot { TestHost { App(play, prefs, UpdateController(null, prefs), startTier = tier) } }
     }
 

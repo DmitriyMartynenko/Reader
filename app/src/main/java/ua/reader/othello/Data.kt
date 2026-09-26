@@ -5,11 +5,21 @@ import androidx.compose.ui.graphics.Color
 import org.json.JSONArray
 import org.json.JSONObject
 
+/**
+ * One speech or stage direction. The perception sets come from tools/presence.js and follow the
+ * stage directions: who hears it, who only watches (hidden), who is on stage but unconscious or
+ * asleep, and who is on stage but shut out of an aside.
+ */
 data class Line(
     val id: Int,
     val uk: String,
     val en: String,
     val speaker: String?,
+    val hear: Set<String> = emptySet(),
+    val see: Set<String> = emptySet(),
+    val unconscious: Set<String> = emptySet(),
+    val asleep: Set<String> = emptySet(),
+    val shutOut: Set<String> = emptySet(),
 ) {
     val isDirection get() = speaker == null
 }
@@ -46,8 +56,11 @@ class Play(
     val scenes: List<Scene>,
     val characters: Map<String, Character>,
     pyramidText: String,
+    perspectivesText: String,
 ) {
     val pyramid: Pyramid = Pyramid.parse(pyramidText, scenes)
+    val lines: Map<Int, Line> = scenes.flatMap { it.lines }.associateBy { it.id }
+    val perspectives: Map<String, Perspective> = Perspective.parseAll(perspectivesText, scenes)
     val appearances: Map<String, Appearance>
     private val nameToId: Map<String, String>
     val nameRegex: Regex?
@@ -81,13 +94,12 @@ class Play(
         scene.lines.mapNotNull { it.speaker }.distinct().mapNotNull { characters[it] }
 
     companion object {
-        fun load(context: Context): Play = parse(
-            context.assets.open("play.json").bufferedReader().readText(),
-            context.assets.open("characters.json").bufferedReader().readText(),
-            context.assets.open("pyramid.json").bufferedReader().readText(),
-        )
+        fun load(context: Context): Play {
+            fun asset(name: String) = context.assets.open(name).bufferedReader().readText()
+            return parse(asset("play.json"), asset("characters.json"), asset("pyramid.json"), asset("perspectives.json"))
+        }
 
-        fun parse(playText: String, charactersText: String, pyramidText: String): Play {
+        fun parse(playText: String, charactersText: String, pyramidText: String, perspectivesText: String): Play {
             val playJson = JSONObject(playText)
             val charJson = JSONObject(charactersText)
 
@@ -99,11 +111,17 @@ class Play(
                     place = s.getString("place"),
                     placeEn = s.getString("placeEn"),
                     lines = s.getJSONArray("items").objects().map { l ->
+                        fun ids(key: String) = l.optJSONArray(key)?.strings()?.toSet().orEmpty()
                         Line(
                             id = l.getInt("id"),
                             uk = l.getString("uk"),
                             en = l.getString("en"),
                             speaker = if (l.has("d")) null else l.getString("sp"),
+                            hear = ids("h"),
+                            see = ids("s"),
+                            unconscious = ids("u"),
+                            asleep = ids("z"),
+                            shutOut = ids("x"),
                         )
                     },
                 )
@@ -115,7 +133,7 @@ class Play(
                     id = c.getString("id"),
                     name = c.getString("name"),
                     role = c.getString("role"),
-                    color = Color(android.graphics.Color.parseColor(c.getString("color"))),
+                    color = hexColor(c.getString("color")),
                     main = c.getBoolean("main"),
                     names = c.getJSONArray("names").strings(),
                     who = c.getString("who"),
@@ -127,12 +145,15 @@ class Play(
                     quote = c.optString("quote").ifEmpty { null },
                 )
             }
-            return Play(scenes, characters, pyramidText)
+            return Play(scenes, characters, pyramidText, perspectivesText)
         }
     }
 }
 
-private fun JSONArray.objects(): List<JSONObject> = List(length()) { getJSONObject(it) }
-private fun JSONArray.strings(): List<String> = List(length()) { getString(it) }
+internal fun JSONArray.objects(): List<JSONObject> = List(length()) { getJSONObject(it) }
+internal fun JSONArray.strings(): List<String> = List(length()) { getString(it) }
+
+/** "#RRGGBB" to an opaque colour, without Android's parser so plain JVM tests can load the data. */
+fun hexColor(hex: String): Color = Color(hex.removePrefix("#").toLong(16) or 0xFF000000L)
 
 val ROMAN = listOf("", "I", "II", "III", "IV", "V")

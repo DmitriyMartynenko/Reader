@@ -107,9 +107,17 @@ class StoryIndex(private val play: Play) {
  * tiers are looking at: it follows the text while the text is open and moves to whatever item the
  * user zooms into, so going down to the text afterwards opens that place.
  */
-class Navigator(start: Tier, readerFocus: Focus) {
+class Navigator(start: Tier, readerFocus: Focus, lens: String? = null) {
     var tier: Tier by mutableStateOf(start)
         private set
+
+    /** Whose eyes the story is seen with: a character id, or null for the all-seeing author. */
+    var lens: String? by mutableStateOf(lens)
+        private set
+
+    fun useLens(id: String?) {
+        lens = id
+    }
     var focus: Focus by mutableStateOf(readerFocus)
         private set
     var readerFocus: Focus by mutableStateOf(readerFocus)

@@ -34,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
@@ -51,10 +52,10 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 // Width of each pyramid layer, top edge and bottom edge, as a share of the full width.
-private fun layerTop(i: Int) = 0.22f + 0.156f * i
-private fun layerBottom(i: Int) = if (i == Tier.entries.lastIndex) 1f else layerTop(i + 1)
+internal fun layerTop(i: Int) = 0.22f + 0.156f * i
+internal fun layerBottom(i: Int) = if (i == Tier.entries.lastIndex) 1f else layerTop(i + 1)
 
-private fun trapezoid(top: Float, bottom: Float) = GenericShape { size, _ ->
+internal fun trapezoid(top: Float, bottom: Float) = GenericShape { size, _ ->
     moveTo(size.width * (1 - top) / 2, 0f)
     lineTo(size.width * (1 + top) / 2, 0f)
     lineTo(size.width * (1 + bottom) / 2, size.height)
@@ -230,6 +231,8 @@ fun IdeaScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        Spacer(Modifier.height(28.dp))
+        LensPickerRow(play) { navigator.useLens(it) }
         Spacer(Modifier.height(24.dp))
         Surface(
             onClick = { navigator.go(Tier.Text, reading) },
@@ -302,16 +305,44 @@ private fun ParentLine(label: String, text: String, onClick: () -> Unit) {
     }
 }
 
+/** [faded]: the lens character is not in this part of the story. */
 @Composable
-private fun ItemCard(highlighted: Boolean, onClick: () -> Unit, content: @Composable () -> Unit) {
+private fun ItemCard(highlighted: Boolean, onClick: () -> Unit, faded: Boolean = false, content: @Composable () -> Unit) {
     Surface(
         onClick = onClick,
         shape = CardShape,
         color = if (highlighted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
         else MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp).alpha(if (faded) 0.6f else 1f),
     ) {
         Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) { content() }
+    }
+}
+
+/** "Без Отелло" — marks a card of the story the lens character is not part of. */
+@Composable
+private fun WithoutLabel(lens: Lens) {
+    Text(
+        "Без ${lens.perspective.genitive}",
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.SemiBold,
+        color = lens.character.color.forTheme(),
+    )
+}
+
+/** Text written from the lens character's side, set apart by a bar in their colour. */
+@Composable
+private fun FirstPerson(lens: Lens, text: String, play: Play, onCharacter: (String) -> Unit, large: Boolean) {
+    val color = lens.character.color.forTheme()
+    Row(Modifier.height(IntrinsicSize.Min)) {
+        Box(Modifier.width(3.dp).fillMaxHeight().background(color, RoundedCornerShape(2.dp)))
+        Spacer(Modifier.width(10.dp))
+        Text(
+            formatText(text, play, highlight = true, onCharacter = onCharacter),
+            style = if (large) MaterialTheme.typography.bodyLarge else MaterialTheme.typography.bodyMedium,
+            fontFamily = FontFamily.Serif,
+            fontStyle = FontStyle.Italic,
+        )
     }
 }
 
@@ -331,6 +362,7 @@ fun ActsScreen(
     play: Play,
     index: StoryIndex,
     navigator: Navigator,
+    lens: Lens?,
     padding: PaddingValues,
     onCharacter: (String, Int) -> Unit,
 ) {
@@ -339,13 +371,19 @@ fun ActsScreen(
     val state = rememberLazyListState((index.actOf(navigator.focus) - 1).coerceAtLeast(0))
     LazyColumn(state = state, contentPadding = padding.plusVertical(8.dp), modifier = Modifier.fillMaxSize()) {
         item(key = "parent") {
-            ParentLine("Ідея", pyramid.idea) { navigator.go(Tier.Idea) }
+            if (lens == null) ParentLine("Ідея", pyramid.idea) { navigator.go(Tier.Idea) }
+            else ParentLine("Ідея очима ${lens.perspective.genitive}", lens.perspective.idea) { navigator.go(Tier.Idea) }
         }
         items(pyramid.acts, key = { it.act }) { act ->
             val scenes = play.scenes.filter { it.act == act.act }
-            val moments = pyramid.moments.count { play.scenes[it.sceneIndex].act == act.act }
+            val moments = pyramid.moments.filter { play.scenes[it.sceneIndex].act == act.act }
             val sceneContext = index.actStart(act.act).scene
-            ItemCard(highlighted = act.act == readingAct, onClick = { navigator.go(Tier.Scenes, index.actStart(act.act)) }) {
+            val present = lens == null || act.act in lens.presentActs
+            ItemCard(
+                highlighted = act.act == readingAct,
+                faded = !present,
+                onClick = { navigator.go(Tier.Scenes, index.actStart(act.act)) },
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         "АКТ ${ROMAN[act.act]}",
@@ -361,13 +399,34 @@ fun ActsScreen(
                 Spacer(Modifier.height(4.dp))
                 Text(act.title, style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
                 Spacer(Modifier.height(6.dp))
-                Text(
-                    formatText(act.summary, play, highlight = true) { onCharacter(it, sceneContext) },
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontFamily = FontFamily.Serif,
-                )
+                val ownText = lens?.perspective?.acts?.get(act.act)
+                when {
+                    lens == null -> Text(
+                        formatText(act.summary, play, highlight = true) { onCharacter(it, sceneContext) },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontFamily = FontFamily.Serif,
+                    )
+                    ownText != null -> FirstPerson(lens, ownText, play, { onCharacter(it, sceneContext) }, large = true)
+                    else -> {
+                        WithoutLabel(lens)
+                        Text(
+                            formatText("Тим часом: ${act.summary}", play, highlight = true) { onCharacter(it, sceneContext) },
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontFamily = FontFamily.Serif,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(10.dp))
-                ZoomHint("${uaPlural(scenes.size, "сцена", "сцени", "сцен")} · ${uaPlural(moments, "момент", "моменти", "моментів")}")
+                if (lens != null && present) {
+                    val inScenes = scenes.count { lens.scenePresence[it.index] > 0f }
+                    val seen = moments.count { lens.perception(it.lineId).perceives }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        lens.phaseAtActEnd(act.act)?.let { PhaseChip(it); Spacer(Modifier.width(8.dp)) }
+                        ZoomHint("у $inScenes з ${scenes.size} сцен · бачить $seen з ${moments.size}")
+                    }
+                } else {
+                    ZoomHint("${uaPlural(scenes.size, "сцена", "сцени", "сцен")} · ${uaPlural(moments.size, "момент", "моменти", "моментів")}")
+                }
             }
         }
     }
@@ -385,6 +444,7 @@ fun ScenesScreen(
     play: Play,
     index: StoryIndex,
     navigator: Navigator,
+    lens: Lens?,
     padding: PaddingValues,
     onCharacter: (String, Int) -> Unit,
 ) {
@@ -417,7 +477,12 @@ fun ScenesScreen(
                 is SceneRow.Item -> {
                     val s = row.summary
                     val scene = play.scenes[s.sceneIndex]
-                    ItemCard(highlighted = s.sceneIndex == readingScene, onClick = { navigator.go(Tier.Moments, index.sceneStart(s.sceneIndex)) }) {
+                    val presence = lens?.scenePresence?.get(s.sceneIndex) ?: 1f
+                    ItemCard(
+                        highlighted = s.sceneIndex == readingScene,
+                        faded = presence == 0f,
+                        onClick = { navigator.go(Tier.Moments, index.sceneStart(s.sceneIndex)) },
+                    ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 "СЦЕНА ${scene.number}",
@@ -439,13 +504,33 @@ fun ScenesScreen(
                         Spacer(Modifier.height(4.dp))
                         Text(s.title, style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Serif)
                         Spacer(Modifier.height(4.dp))
-                        Text(
-                            formatText(s.summary, play, highlight = true) { onCharacter(it, s.sceneIndex) },
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontFamily = FontFamily.Serif,
-                        )
+                        val ownText = lens?.perspective?.scenes?.get(s.sceneIndex)
+                        when {
+                            lens == null -> Text(
+                                formatText(s.summary, play, highlight = true) { onCharacter(it, s.sceneIndex) },
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontFamily = FontFamily.Serif,
+                            )
+                            ownText != null -> FirstPerson(lens, ownText, play, { onCharacter(it, s.sceneIndex) }, large = false)
+                            else -> {
+                                WithoutLabel(lens)
+                                Text(
+                                    formatText(s.summary, play, highlight = true) { onCharacter(it, s.sceneIndex) },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Serif,
+                                )
+                            }
+                        }
                         Spacer(Modifier.height(8.dp))
-                        ZoomHint(uaPlural(s.moments.size, "ключовий момент", "ключові моменти", "ключових моментів"))
+                        if (lens != null && presence > 0f) {
+                            val seen = s.moments.count { lens.perception(it.lineId).perceives }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                lens.phaseAtSceneEnd(s.sceneIndex)?.let { PhaseChip(it); Spacer(Modifier.width(8.dp)) }
+                                ZoomHint("${if (presence > 0.9f) "усю сцену" else "частину сцени"} · бачить $seen з ${s.moments.size}")
+                            }
+                        } else {
+                            ZoomHint(uaPlural(s.moments.size, "ключовий момент", "ключові моменти", "ключових моментів"))
+                        }
                     }
                 }
             }
@@ -479,6 +564,7 @@ fun MomentsScreen(
     play: Play,
     index: StoryIndex,
     navigator: Navigator,
+    lens: Lens?,
     padding: PaddingValues,
     onCharacter: (String, Int) -> Unit,
 ) {
@@ -498,7 +584,11 @@ fun MomentsScreen(
     val current = index.momentOf(navigator.readerFocus).index
     LazyColumn(state = state, contentPadding = padding.plusVertical(8.dp), modifier = Modifier.fillMaxSize()) {
         item(key = "parent") {
-            ParentLine("Сцени", "Кожен момент веде до свого місця в тексті") { navigator.go(Tier.Scenes) }
+            ParentLine(
+                "Сцени",
+                if (lens == null) "Кожен момент веде до свого місця в тексті"
+                else "Приглушено — те, чого ${lens.perspective.genitive} не бачить: відсутність, розмови вбік, непритомність",
+            ) { navigator.go(Tier.Scenes) }
         }
         items(rows, key = { if (it is MomentRow.Item) "m${it.moment.index}" else "s${(it as MomentRow.SceneTitle).summary.sceneIndex}" }) { row ->
             when (row) {
@@ -513,6 +603,7 @@ fun MomentsScreen(
                     moment = row.moment,
                     state = row.moment.index.compareTo(current),
                     last = row.last,
+                    lens = lens,
                     onClick = { navigator.go(Tier.Text, index.momentFocus(row.moment)) },
                     onCharacter = { onCharacter(it, row.moment.sceneIndex) },
                 )
@@ -528,18 +619,21 @@ private fun MomentItem(
     moment: Moment,
     state: Int,
     last: Boolean,
+    lens: Lens?,
     onClick: () -> Unit,
     onCharacter: (String) -> Unit,
 ) {
     val accent = MaterialTheme.colorScheme.primary
     val rail = MaterialTheme.colorScheme.outlineVariant
     val paper = MaterialTheme.colorScheme.background
+    val perception = lens?.perception(moment.lineId)
     Row(
         Modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min)
             .clickable(onClick = onClick)
-            .padding(start = 24.dp, end = 20.dp),
+            .padding(start = 24.dp, end = 20.dp)
+            .alpha(if (perception == null || perception.perceives) 1f else 0.45f),
     ) {
         Box(Modifier.width(20.dp).fillMaxHeight()) {
             Canvas(Modifier.fillMaxSize()) {
@@ -571,6 +665,14 @@ private fun MomentItem(
                 style = MaterialTheme.typography.bodyLarge,
                 fontFamily = FontFamily.Serif,
             )
+            if (lens != null && perception != null && perception != Perception.Hears) {
+                Text(
+                    "${lens.character.name}: ${lens.missReason(perception)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (perception == Perception.Sees) lens.character.color.forTheme() else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+            }
         }
     }
 }

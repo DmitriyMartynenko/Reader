@@ -11,7 +11,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Face
@@ -55,26 +55,36 @@ fun App(
     updates: UpdateController,
     startTier: Tier = if (prefs.startAtIdea) Tier.Idea else Tier.Text,
 ) {
-    val layout = remember(play) { ReaderLayout(play) }
     val index = remember(play) { StoryIndex(play) }
-    val listState = rememberLazyListState(prefs.savedRow.coerceIn(0, layout.rows.lastIndex), prefs.savedOffset)
-    val navigator = remember { Navigator(startTier, layout.focusAt(listState.firstVisibleItemIndex)) }
+    val navigator = remember {
+        val line = prefs.savedLine?.takeIf(play.lines::containsKey)
+            ?: ReaderLayout(play).focusAt(prefs.legacyRow).line
+        Navigator(startTier, index.lineFocus(line), prefs.lens?.takeIf(play.perspectives::containsKey))
+    }
+    val lens = remember(navigator.lens) { navigator.lens?.let(play.perspectives::get)?.let { Lens(play, it) } }
+    val layout = remember(lens) { ReaderLayout(play, lens) }
+    // A new lens folds the text differently, so the list starts over at the same place in the story.
+    val savedOffset = remember { intArrayOf(prefs.savedOffset) }
+    val listState = remember(layout) {
+        LazyListState(layout.rowFor(navigator.readerFocus), savedOffset[0]).also { savedOffset[0] = 0 }
+    }
     val scope = rememberCoroutineScope()
     var sheets by remember { mutableStateOf(listOf<Sheet>()) }
     val tier = navigator.tier
 
     LaunchedEffect(updates) { updates.checkOnLaunch(scope) }
+    LaunchedEffect(navigator.lens) { prefs.updateLens(navigator.lens) }
 
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, layout) {
         snapshotFlow { listState.firstVisibleItemIndex }.collect { navigator.onReaderMoved(layout.focusAt(it)) }
     }
-    LaunchedEffect(listState) {
+    LaunchedEffect(listState, layout) {
         snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .debounce(400)
-            .collect { (row, offset) -> prefs.savePosition(row, offset) }
+            .collect { (row, offset) -> prefs.savePosition(layout.focusAt(row).line, offset) }
     }
     // Zooming into the text from a tier opens the text at the chosen place.
-    LaunchedEffect(tier, navigator.pendingJump) {
+    LaunchedEffect(tier, navigator.pendingJump, layout) {
         if (tier == Tier.Text && navigator.pendingJump) {
             listState.scrollToItem(layout.rowFor(navigator.focus))
             navigator.onJumped()
@@ -101,16 +111,27 @@ fun App(
             Modifier
         },
         topBar = {
-            AppTopBar(
-                play = play,
-                tier = tier,
-                readingScene = readingScene,
-                scrollBehavior = if (tier == Tier.Text) topScroll else null,
-                updateAvailable = updates.available != null,
-                onUp = { navigator.zoomOut() },
-                onTitle = { if (tier == Tier.Text) navigator.go(Tier.Scenes) },
-                onOpen = ::open,
-            )
+            Column {
+                AppTopBar(
+                    play = play,
+                    tier = tier,
+                    lens = lens,
+                    readingScene = readingScene,
+                    scrollBehavior = if (tier == Tier.Text) topScroll else null,
+                    updateAvailable = updates.available != null,
+                    onUp = { navigator.zoomOut() },
+                    onTitle = { if (tier == Tier.Text) navigator.go(Tier.Scenes) },
+                    onOpen = ::open,
+                )
+                if (lens != null && tier != Tier.Idea) {
+                    LensBanner(
+                        lens = lens,
+                        phase = lens.phaseAt(navigator.readerFocus.line),
+                        onOpen = { navigator.go(Tier.Idea) },
+                        onClose = { navigator.useLens(null) },
+                    )
+                }
+            }
         },
         bottomBar = {
             BottomAppBar(
@@ -144,13 +165,18 @@ fun App(
             label = "tier",
         ) { shown ->
             when (shown) {
-                Tier.Idea -> IdeaScreen(play, index, navigator, padding) { open(Sheet.Profile(it, navigator.readerFocus.scene)) }
-                Tier.Acts -> ActsScreen(play, index, navigator, padding, openProfile)
-                Tier.Scenes -> ScenesScreen(play, index, navigator, padding, openProfile)
-                Tier.Moments -> MomentsScreen(play, index, navigator, padding, openProfile)
+                Tier.Idea -> {
+                    val onName: (String) -> Unit = { open(Sheet.Profile(it, navigator.readerFocus.scene)) }
+                    if (lens == null) IdeaScreen(play, index, navigator, padding, onName)
+                    else LensIdeaScreen(play, index, navigator, lens, padding, onName)
+                }
+                Tier.Acts -> ActsScreen(play, index, navigator, lens, padding, openProfile)
+                Tier.Scenes -> ScenesScreen(play, index, navigator, lens, padding, openProfile)
+                Tier.Moments -> MomentsScreen(play, index, navigator, lens, padding, openProfile)
                 Tier.Text -> PlayText(
                     play = play,
                     layout = layout,
+                    lens = lens,
                     prefs = prefs,
                     listState = listState,
                     contentPadding = PaddingValues(
@@ -179,6 +205,11 @@ fun App(
                 sheets = emptyList()
                 navigator.go(Tier.Text, index.lineFocus(it))
             },
+            lens = navigator.lens,
+            onLens = {
+                sheets = emptyList()
+                navigator.useLens(it)
+            },
             updates = updates,
         )
     }
@@ -191,6 +222,7 @@ fun App(
 private fun AppTopBar(
     play: Play,
     tier: Tier,
+    lens: Lens?,
     readingScene: Scene,
     scrollBehavior: TopAppBarScrollBehavior?,
     updateAvailable: Boolean,
@@ -230,6 +262,7 @@ private fun AppTopBar(
             }
         },
         actions = {
+            LensButton(lens) { onOpen(Sheet.Lens) }
             IconButton(onClick = { onOpen(Sheet.AllCharacters) }) {
                 Icon(Icons.Filled.Person, contentDescription = "Усі персонажі")
             }

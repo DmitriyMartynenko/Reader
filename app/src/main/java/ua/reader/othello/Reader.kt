@@ -24,9 +24,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
@@ -57,15 +59,22 @@ sealed interface ReaderRow {
     data class SceneHeader(override val scene: Scene) : ReaderRow {
         override val key get() = "scene${scene.index}"
     }
-    data class Speech(override val scene: Scene, val line: Line) : ReaderRow {
+    /** A line the reader sees. [watching] marks lines a lens character sees but cannot hear. */
+    data class Speech(override val scene: Scene, val line: Line, val watching: Boolean = false, val runStart: Boolean = false) : ReaderRow {
         override val key get() = "l${line.id}"
     }
-    data class Direction(override val scene: Scene, val line: Line) : ReaderRow {
+    data class Direction(override val scene: Scene, val line: Line, val watching: Boolean = false, val runStart: Boolean = false) : ReaderRow {
         override val key get() = "l${line.id}"
+    }
+
+    /** Consecutive lines the lens character misses for the same [reason], folded into one row. */
+    data class Hidden(override val scene: Scene, val lines: List<Line>, val reason: Perception) : ReaderRow {
+        override val key get() = "h${lines.first().id}"
     }
 }
 
-class ReaderLayout(play: Play) {
+/** The text as rows; through a [lens], what the character does not perceive is folded away. */
+class ReaderLayout(play: Play, lens: Lens? = null) {
     val rows: List<ReaderRow>
     val sceneStart: Map<Int, Int>
     val lineRow: Map<Int, Int>
@@ -79,20 +88,47 @@ class ReaderLayout(play: Play) {
             sceneStart[scene.index] = rows.size
             if (scene.number == 1) rows += ReaderRow.ActHeader(scene)
             rows += ReaderRow.SceneHeader(scene)
-            for (line in scene.lines) {
-                lineRow[line.id] = rows.size
-                rows += if (line.isDirection) ReaderRow.Direction(scene, line) else ReaderRow.Speech(scene, line)
+
+            val missed = mutableListOf<Line>()
+            var missedReason: Perception? = null
+            fun fold() {
+                if (missed.isEmpty()) return
+                missed.forEach { lineRow[it.id] = rows.size }
+                rows += ReaderRow.Hidden(scene, missed.toList(), missedReason!!)
+                missed.clear()
             }
+            var watchingBefore = false
+            for (line in scene.lines) {
+                val p = lens?.perception(line)
+                if (p == null || p.perceives) {
+                    fold()
+                    val watching = p == Perception.Sees
+                    lineRow[line.id] = rows.size
+                    rows += if (line.isDirection) {
+                        ReaderRow.Direction(scene, line, watching, watching && !watchingBefore)
+                    } else {
+                        ReaderRow.Speech(scene, line, watching, watching && !watchingBefore)
+                    }
+                    watchingBefore = watching
+                } else {
+                    if (missedReason != p) fold()
+                    missed += line
+                    missedReason = p
+                    watchingBefore = false
+                }
+            }
+            fold()
         }
         this.rows = rows
         this.sceneStart = sceneStart
         this.lineRow = lineRow
     }
 
-    /** The place a row stands for; act and scene headings stand for the scene's first line. */
+    /** The place a row stands for; headings stand for the scene's first line, folds for their first line. */
     fun focusAt(row: Int): Focus = when (val r = rows[row.coerceIn(0, rows.lastIndex)]) {
         is ReaderRow.Speech -> Focus(r.scene.index, r.line.id)
         is ReaderRow.Direction -> Focus(r.scene.index, r.line.id)
+        is ReaderRow.Hidden -> Focus(r.scene.index, r.lines.first().id)
         else -> Focus(r.scene.index, firstLine.getValue(r.scene.index))
     }
 
@@ -107,13 +143,15 @@ sealed interface Sheet {
     data object Cast : Sheet
     data object AllCharacters : Sheet
     data object Settings : Sheet
+    data object Lens : Sheet
 }
 
-/** The base of the pyramid: the full text as one continuous list. */
+/** The base of the pyramid: the full text as one continuous list, or what [lens] perceives of it. */
 @Composable
 fun PlayText(
     play: Play,
     layout: ReaderLayout,
+    lens: Lens?,
     prefs: Prefs,
     listState: LazyListState,
     contentPadding: PaddingValues,
@@ -122,6 +160,7 @@ fun PlayText(
     onIdea: () -> Unit,
 ) {
     val moments = remember(play) { play.pyramid.moments.associateBy { it.lineId } }
+    val expanded = remember(layout) { mutableStateMapOf<String, Boolean>() }
     LazyColumn(
         state = listState,
         contentPadding = contentPadding,
@@ -131,11 +170,18 @@ fun PlayText(
             when (row) {
                 is ReaderRow.ActHeader -> ActHeader(row.scene.act, play.pyramid.act(row.scene.act).title)
                 is ReaderRow.SceneHeader -> SceneHeader(row.scene, play.pyramid.scenes[row.scene.index].title)
-                is ReaderRow.Direction -> LineBlock(moments[row.line.id], onMoment) {
-                    DirectionRow(play, row.line, prefs, onCharacter)
+                is ReaderRow.Direction -> LineBlock(moments[row.line.id], lens?.eventsByLine?.get(row.line.id), onMoment) {
+                    Watching(lens, row.watching, row.runStart) { DirectionRow(play, row.line, prefs, onCharacter) }
                 }
-                is ReaderRow.Speech -> LineBlock(moments[row.line.id], onMoment) {
-                    SpeechRow(play, row.line, prefs, onCharacter)
+                is ReaderRow.Speech -> LineBlock(moments[row.line.id], lens?.eventsByLine?.get(row.line.id), onMoment) {
+                    Watching(lens, row.watching, row.runStart) {
+                        SpeechRow(play, row.line, prefs, onCharacter, own = lens != null && row.line.speaker == lens.id)
+                    }
+                }
+                is ReaderRow.Hidden -> if (lens != null) {
+                    HiddenRow(play, lens, row, prefs, expanded[row.key] == true, onCharacter) {
+                        expanded[row.key] = expanded[row.key] != true
+                    }
                 }
             }
         }
@@ -143,37 +189,129 @@ fun PlayText(
     }
 }
 
-/** Marks lines that are key moments of the pyramid; the label leads one level up. */
+/**
+ * Marks key moments of the pyramid (the label leads one tier up) and, through a lens,
+ * the turning points of the character's life.
+ */
 @Composable
-private fun LineBlock(moment: Moment?, onMoment: (Moment) -> Unit, content: @Composable () -> Unit) {
-    if (moment == null) {
+private fun LineBlock(moment: Moment?, event: LifeEvent?, onMoment: (Moment) -> Unit, content: @Composable () -> Unit) {
+    if (moment == null && event == null) {
         content()
         return
     }
     val accent = MaterialTheme.colorScheme.primary
+    val bar = if (moment != null) accent else event!!.tone.color.forTheme()
     Column(
         Modifier.drawBehind {
-            drawLine(accent, Offset(8.dp.toPx(), 0f), Offset(8.dp.toPx(), size.height), strokeWidth = 3.dp.toPx())
+            drawLine(bar, Offset(8.dp.toPx(), 0f), Offset(8.dp.toPx(), size.height), strokeWidth = 3.dp.toPx())
         },
     ) {
-        Row(
-            Modifier
-                .padding(start = 14.dp, top = 8.dp)
-                .clip(RoundedCornerShape(50))
-                .clickable { onMoment(moment) }
-                .padding(horizontal = 6.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(Modifier.size(6.dp).background(accent, CircleShape))
-            Spacer(Modifier.width(6.dp))
-            Text(
-                "Ключовий момент",
-                style = MaterialTheme.typography.labelSmall,
-                color = accent,
-                letterSpacing = 0.05.em,
-            )
+        if (event != null) {
+            val color = event.tone.color.forTheme()
+            Row(Modifier.padding(start = 20.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Box(Modifier.size(6.dp).background(color, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text(event.label, style = MaterialTheme.typography.labelSmall, color = color, fontWeight = FontWeight.SemiBold)
+            }
+        }
+        if (moment != null) {
+            Row(
+                Modifier
+                    .padding(start = 14.dp, top = if (event == null) 8.dp else 2.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable { onMoment(moment) }
+                    .padding(horizontal = 6.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(6.dp).background(accent, CircleShape))
+                Spacer(Modifier.width(6.dp))
+                Text(
+                    "Ключовий момент",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = accent,
+                    letterSpacing = 0.05.em,
+                )
+            }
         }
         content()
+    }
+}
+
+/** Lines the lens character watches from hiding: shown faded, with a note at the start of the stretch. */
+@Composable
+private fun Watching(lens: Lens?, watching: Boolean, runStart: Boolean, content: @Composable () -> Unit) {
+    if (lens == null || !watching) {
+        content()
+        return
+    }
+    Column {
+        if (runStart) {
+            Text(
+                "${lens.character.name} бачить, але не чує",
+                style = MaterialTheme.typography.labelSmall,
+                color = lens.character.color.forTheme(),
+                modifier = Modifier.padding(start = 20.dp, top = 8.dp),
+            )
+        }
+        Box(Modifier.alpha(0.6f)) { content() }
+    }
+}
+
+/** A folded stretch of text the lens character does not perceive; opens on tap, faded. */
+@Composable
+private fun HiddenRow(
+    play: Play,
+    lens: Lens,
+    row: ReaderRow.Hidden,
+    prefs: Prefs,
+    expanded: Boolean,
+    onCharacter: (String) -> Unit,
+    onToggle: () -> Unit,
+) {
+    val name = lens.character.name
+    val why = when (row.reason) {
+        Perception.Aside -> {
+            val speakers = row.lines.mapNotNull { it.speaker }.distinct().mapNotNull { play.characters[it]?.name }
+            val verb = if (speakers.size > 1) "говорять" else "говорить"
+            "${speakers.joinToString(" і ")} $verb убік — $name не чує"
+        }
+        Perception.Absent -> "$name немає на сцені"
+        Perception.Unconscious -> "$name без свідомості"
+        Perception.Asleep -> "$name спить"
+        Perception.Dead -> "$name уже немає серед живих"
+        Perception.Hears, Perception.Sees -> ""
+    }
+    Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainer)
+                .clickable(onClick = onToggle)
+                .padding(horizontal = 14.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(why, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    uaPlural(row.lines.size, "рядок", "рядки", "рядків") + " поза цим поглядом",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Text(
+                if (expanded) "Сховати" else "Показати",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        if (expanded) {
+            Column(Modifier.alpha(0.5f)) {
+                for (line in row.lines) {
+                    if (line.isDirection) DirectionRow(play, line, prefs, onCharacter) else SpeechRow(play, line, prefs, onCharacter)
+                }
+            }
+        }
     }
 }
 
@@ -257,11 +395,17 @@ private fun SceneHeader(scene: Scene, title: String) {
 }
 
 @Composable
-private fun SpeechRow(play: Play, line: Line, prefs: Prefs, onCharacter: (String) -> Unit) {
+private fun SpeechRow(play: Play, line: Line, prefs: Prefs, onCharacter: (String) -> Unit, own: Boolean = false) {
     val fontSize = prefs.fontSize
     val speaker = play.characters[line.speaker]
     val color = (speaker?.color ?: MaterialTheme.colorScheme.primary).forTheme()
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp)) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            // Through a lens, the character's own words stand out.
+            .then(if (own) Modifier.background(color.copy(alpha = 0.08f)) else Modifier)
+            .padding(horizontal = 20.dp, vertical = 6.dp),
+    ) {
         Box(
             Modifier
                 .clickable { line.speaker?.let(onCharacter) }

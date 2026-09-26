@@ -64,6 +64,8 @@ fun SheetHost(
     onDismiss: () -> Unit,
     onOpen: (Sheet) -> Unit,
     onJumpToLine: (Int) -> Unit,
+    lens: String?,
+    onLens: (String?) -> Unit,
     updates: UpdateController,
 ) {
     ModalBottomSheet(
@@ -78,7 +80,7 @@ fun SheetHost(
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
         ) {
-            SheetContent(play, prefs, updates, sheet, canGoBack, currentScene, onBack, onOpen, onJumpToLine)
+            SheetContent(play, prefs, updates, sheet, canGoBack, currentScene, onBack, onOpen, onJumpToLine, lens, onLens)
         }
     }
 }
@@ -94,14 +96,18 @@ fun SheetContent(
     onBack: () -> Unit = {},
     onOpen: (Sheet) -> Unit = {},
     onJumpToLine: (Int) -> Unit = {},
+    lens: String? = null,
+    onLens: (String?) -> Unit = {},
 ) {
     when (sheet) {
         is Sheet.Profile -> ProfileSheet(
             play, sheet.id, sheet.scene?.let(play.scenes::get) ?: currentScene, canGoBack, onBack, onOpen, onJumpToLine,
+            onLens = onLens.takeIf { sheet.id in play.perspectives && sheet.id != lens },
         )
         Sheet.Cast -> CastSheet(play, currentScene, canGoBack, onBack, onOpen)
         Sheet.AllCharacters -> AllCharactersSheet(play, canGoBack, onBack, onOpen)
         Sheet.Settings -> SettingsSheet(prefs, updates)
+        Sheet.Lens -> LensChooser(play, lens, onLens)
     }
 }
 
@@ -191,6 +197,7 @@ private fun ProfileSheet(
     onBack: () -> Unit,
     onOpen: (Sheet) -> Unit,
     onJumpToLine: (Int) -> Unit,
+    onLens: ((String?) -> Unit)?,
 ) {
     val c = play.characters[id] ?: return
     val appearance = play.appearances[id]
@@ -209,6 +216,18 @@ private fun ProfileSheet(
         Column {
             Text(c.name, style = MaterialTheme.typography.headlineSmall, fontFamily = FontFamily.Serif, color = color)
             Text(c.role, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+
+    val perspective = play.perspectives[id]
+    if (onLens != null && perspective != null) {
+        OutlinedButton(
+            onClick = { onLens(id) },
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
+        ) {
+            EyeIcon(color, Modifier.size(width = 18.dp, height = 12.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Подивитися на історію очима ${perspective.genitive}")
         }
     }
 

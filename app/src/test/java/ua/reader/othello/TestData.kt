@@ -5,10 +5,9 @@ import java.io.File
 /** The real app data, loaded once for all tests (Gradle runs tests from the module directory). */
 object TestData {
     val play: Play by lazy {
-        Play.parse(
-            File("src/main/assets/play.json").readText(),
-            File("src/main/assets/characters.json").readText(),
-            File("src/main/assets/pyramid.json").readText(),
-        )
+        fun asset(name: String) = File("src/main/assets/$name").readText()
+        Play.parse(asset("play.json"), asset("characters.json"), asset("pyramid.json"), asset("perspectives.json"))
     }
+
+    fun lens(id: String) = Lens(play, play.perspectives.getValue(id))
 }
