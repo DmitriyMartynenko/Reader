@@ -17,6 +17,12 @@ class Prefs(private val sp: SharedPreferences?) {
     var startAtIdea by mutableStateOf(sp?.getBoolean("startAtIdea", true) ?: true)
         private set
 
+    /** The personal pyramid shows where along the story the character is, instead of how much. */
+    var pyramidTimeline by mutableStateOf(sp?.getBoolean("pyramidTimeline", false) ?: false)
+        private set
+
+    fun updatePyramidTimeline(v: Boolean) { pyramidTimeline = v; sp?.edit()?.putBoolean("pyramidTimeline", v)?.apply() }
+
     /** Whose eyes the story was last seen with; null for the author. */
     val lens: String? get() = sp?.getString("lens", null)
 

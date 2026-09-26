@@ -65,6 +65,23 @@ class Perspective(
     }
 }
 
+/** The play laid out on one line: 0 is the first line of act I, 1 the end of act V. */
+class StoryAxis(play: Play) {
+    private val order: List<Int> = play.scenes.flatMap { s -> s.lines.map { it.id } }
+    private val position: Map<Int, Int> = order.withIndex().associate { it.value to it.index }
+    val size: Int get() = order.size
+
+    fun start(lineId: Int) = position.getValue(lineId).toFloat() / size
+    fun end(lineId: Int) = (position.getValue(lineId) + 1).toFloat() / size
+    fun lineAt(t: Float): Int = order[(t * size).toInt().coerceIn(0, size - 1)]
+
+    /** Where acts II–V begin. */
+    val actStarts: List<Float> = play.scenes.filter { it.number == 1 && it.act > 1 }.map { start(it.lines.first().id) }
+}
+
+/** A stretch of the story along [StoryAxis]; [strength] 0..1 is how fully the character is in it. */
+data class Span(val start: Float, val end: Float, val strength: Float)
+
 /** How a character takes in one line of the play. */
 enum class Perception {
     Hears, Sees, Aside, Unconscious, Asleep, Absent, Dead;
@@ -106,6 +123,46 @@ class Lens(val play: Play, val perspective: Perspective) {
     fun phaseAtActEnd(act: Int): Phase? = phaseAt(play.scenes.last { it.act == act }.lines.last().id)
 
     fun isDeadAt(lineId: Int) = perspective.death != null && lineId >= perspective.death
+
+    /**
+     * Where along the story the character takes part, at the resolution of [tier]: their whole span
+     * for the idea, the acts and scenes they are in, every key moment (strength 0 when unseen), and
+     * the stretches of text they hear (0.5 where they only watch).
+     */
+    fun spans(tier: Tier, axis: StoryAxis): List<Span> {
+        val scenes = play.scenes
+        fun sceneSpan(i: Int) = Span(axis.start(scenes[i].lines.first().id), axis.end(scenes[i].lines.last().id), 1f)
+        return when (tier) {
+            Tier.Idea -> {
+                val seen = scenes.flatMap { it.lines }.filter { perception(it).perceives }
+                if (seen.isEmpty()) emptyList() else listOf(Span(axis.start(seen.first().id), axis.end(seen.last().id), 1f))
+            }
+            Tier.Acts -> presentActs.sorted().map { act ->
+                val inAct = scenes.filter { it.act == act }
+                Span(axis.start(inAct.first().lines.first().id), axis.end(inAct.last().lines.last().id), 1f)
+            }
+            Tier.Scenes -> presentScenes.map { sceneSpan(it).copy(strength = scenePresence[it]) }
+            Tier.Moments -> play.pyramid.moments.map {
+                Span(axis.start(it.lineId), axis.end(it.lineId), if (perception(it.lineId).perceives) 1f else 0f)
+            }
+            Tier.Text -> buildList {
+                var run: Span? = null
+                for (line in scenes.flatMap { it.lines }) {
+                    val strength = when (perception(line)) {
+                        Perception.Hears -> 1f
+                        Perception.Sees -> 0.5f
+                        else -> 0f
+                    }
+                    run = when {
+                        strength == 0f -> { run?.let(::add); null }
+                        run != null && run.strength == strength -> run.copy(end = axis.end(line.id))
+                        else -> { run?.let(::add); Span(axis.start(line.id), axis.end(line.id), strength) }
+                    }
+                }
+                run?.let(::add)
+            }
+        }
+    }
 
     /** Why the character misses a line, as a short phrase: "немає на сцені", "говорять убік"… */
     fun missReason(p: Perception): String = when (p) {

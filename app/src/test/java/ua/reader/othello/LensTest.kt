@@ -103,6 +103,43 @@ class LensTest {
     }
 
     @Test
+    fun storyAxisMapsLinesBothWays() {
+        val axis = StoryAxis(play)
+        for (id in listOf(1, 546, 1195, 1391)) assertEquals(id, axis.lineAt(axis.start(id)))
+        assertEquals(4, axis.actStarts.size)
+        assertEquals(axis.actStarts.sorted(), axis.actStarts)
+    }
+
+    @Test
+    fun timelineSpansShowWhereTheCharacterIs() {
+        val axis = StoryAxis(play)
+        val othello = TestData.lens("othello")
+        // Othello first appears in I.2 and is there until his death at the very end.
+        val life = othello.spans(Tier.Idea, axis).single()
+        assertEquals(axis.start(52), life.start)
+        assertEquals(12, othello.spans(Tier.Scenes, axis).size)
+        assertEquals(5, othello.spans(Tier.Acts, axis).size)
+        assertEquals(play.pyramid.moments.size, othello.spans(Tier.Moments, axis).size)
+        assertEquals(othello.seenMoments, othello.spans(Tier.Moments, axis).count { it.strength > 0f })
+
+        for (id in play.perspectives.keys) {
+            val lens = TestData.lens(id)
+            for (tier in Tier.entries) {
+                val spans = lens.spans(tier, axis)
+                for (s in spans) assertTrue("$id $tier $s", s.start in 0f..1f && s.end in s.start..1f)
+                if (tier != Tier.Moments) {
+                    // Ordered along the story and never overlapping.
+                    spans.zipWithNext().forEach { (a, b) -> assertTrue("$id $tier", a.end <= b.start + 1e-6f) }
+                }
+            }
+            // The text layer marks exactly the lines the character perceives.
+            val marked = lens.spans(Tier.Text, axis).sumOf { ((it.end - it.start) * axis.size).toDouble() }
+            val perceived = play.lines.values.count { lens.perception(it).perceives }
+            assertEquals(id, perceived.toDouble(), marked, 0.01)
+        }
+    }
+
+    @Test
     fun navigatorKeepsThePlaceWhenTheLensChanges() {
         val nav = Navigator(Tier.Text, index.lineFocus(584))
         nav.useLens("othello")

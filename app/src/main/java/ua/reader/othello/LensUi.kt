@@ -27,8 +27,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.runtime.remember
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -41,6 +48,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
@@ -333,50 +341,170 @@ fun LifeEvents(play: Play, lens: Lens, onEvent: (Int) -> Unit) {
     }
 }
 
-/** The character's own pyramid: how much of every tier they saw and heard themselves. */
+/**
+ * The character's own pyramid, in two modes. Share: each layer is filled by how much of that tier
+ * the character witnesses. Timeline: each layer is the story from left (act I) to right (act V)
+ * with the stretches the character takes part in marked, finer on every layer down; a tap there
+ * opens that place of the story on that tier.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LensPyramidDiagram(play: Play, lens: Lens, onTier: (Tier) -> Unit, modifier: Modifier = Modifier) {
+fun LensPyramid(
+    play: Play,
+    lens: Lens,
+    readingLine: Int,
+    timeline: Boolean,
+    onTimeline: (Boolean) -> Unit,
+    onGo: (Tier, Int?) -> Unit,
+) {
+    val name = lens.character.name
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        SegmentedButton(
+            selected = !timeline,
+            onClick = { onTimeline(false) },
+            shape = SegmentedButtonDefaults.itemShape(0, 2),
+        ) { Text("Скільки бачить") }
+        SegmentedButton(
+            selected = timeline,
+            onClick = { onTimeline(true) },
+            shape = SegmentedButtonDefaults.itemShape(1, 2),
+        ) { Text("Де в історії") }
+    }
+    LensPyramidDiagram(play, lens, readingLine, timeline, onGo, Modifier.fillMaxWidth())
+    Spacer(Modifier.height(8.dp))
+    Text(
+        if (timeline) {
+            "Кожен шар — уся історія зліва направо, від першої репліки до останньої. Колір — де саме бере участь $name, " +
+                "пунктир — межі актів, яскрава лінія — де ви зараз. Натисніть на будь-яке місце шару, щоб перейти туди."
+        } else {
+            "Заповнена частина рівня — те, що $name бачить і чує на власні очі. Решту історії від цього погляду приховано."
+        },
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        textAlign = TextAlign.Center,
+    )
+}
+
+@Composable
+fun LensPyramidDiagram(
+    play: Play,
+    lens: Lens,
+    readingLine: Int,
+    timeline: Boolean,
+    onGo: (Tier, Int?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val color = lens.character.color.forTheme()
+    val guide = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f)
+    val here = MaterialTheme.colorScheme.primary
+    val chip = MaterialTheme.colorScheme.background.copy(alpha = 0.8f)
+    val axis = remember(play) { StoryAxis(play) }
     val totalSpeeches = play.scenes.sumOf { s -> s.lines.count { !it.isDirection } }
+    val firstScene = play.scenes[lens.presentScenes.first()]
+    val lastScene = play.scenes[lens.presentScenes.last()]
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         for (tier in Tier.entries) {
             val (fraction, label) = when (tier) {
-                Tier.Idea -> 1f to "власна ідея"
+                Tier.Idea -> 1f to if (timeline) {
+                    "${ROMAN[firstScene.act]}.${firstScene.number} — ${ROMAN[lastScene.act]}.${lastScene.number}"
+                } else {
+                    "власна ідея"
+                }
                 Tier.Acts -> lens.presentActs.size / 5f to "${lens.presentActs.size} з ${play.pyramid.acts.size}"
                 Tier.Scenes -> lens.presentScenes.size / play.scenes.size.toFloat() to "${lens.presentScenes.size} з ${play.scenes.size}"
                 Tier.Moments -> lens.seenMoments / play.pyramid.moments.size.toFloat() to "${lens.seenMoments} з ${play.pyramid.moments.size}"
                 Tier.Text -> lens.heardSpeeches / totalSpeeches.toFloat() to "${lens.heardSpeeches} з $totalSpeeches реплік"
             }
+            val spans = remember(lens, tier) { lens.spans(tier, axis) }
             val i = tier.ordinal
             val top = layerTop(i)
             val bottom = layerBottom(i)
+            // Width share of the trapezoid at height y, and where a point t of the story lies at that height.
+            fun share(y: Float, h: Float) = top + (bottom - top) * y / h
+            fun xAt(t: Float, y: Float, w: Float, h: Float) = w * (1 - share(y, h)) / 2 + t * w * share(y, h)
             Box(
                 Modifier
                     .fillMaxWidth()
                     .height(52.dp)
                     .clip(trapezoid(top, bottom))
-                    .clickable { onTier(tier) },
+                    .pointerInput(timeline) {
+                        detectTapGestures { p ->
+                            if (!timeline) {
+                                onGo(tier, null)
+                            } else {
+                                val w = size.width.toFloat()
+                                val h = size.height.toFloat()
+                                val t = ((p.x - xAt(0f, p.y, w, h)) / (w * share(p.y, h))).coerceIn(0f, 1f)
+                                onGo(tier, axis.lineAt(t))
+                            }
+                        }
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 Canvas(Modifier.fillMaxSize()) {
                     val w = size.width
                     val h = size.height
-                    val tl = w * (1 - top) / 2
-                    val bl = w * (1 - bottom) / 2
-                    drawRect(color.copy(alpha = 0.12f))
-                    // The witnessed share of the layer, filled from the left edge of each row of the trapezoid.
-                    val filled = Path().apply {
-                        moveTo(tl, 0f)
-                        lineTo(tl + w * top * fraction, 0f)
-                        lineTo(bl + w * bottom * fraction, h)
-                        lineTo(bl, h)
-                        close()
+                    fun strip(a: Float, b: Float, c: Color) {
+                        drawPath(
+                            Path().apply {
+                                moveTo(xAt(a, 0f, w, h), 0f)
+                                lineTo(xAt(b, 0f, w, h), 0f)
+                                lineTo(xAt(b, h, w, h), h)
+                                lineTo(xAt(a, h, w, h), h)
+                                close()
+                            },
+                            c,
+                        )
                     }
-                    drawPath(filled, color.copy(alpha = 0.55f))
+                    fun slanted(t: Float, c: Color, width: Float, dashed: Boolean = false) = drawLine(
+                        c,
+                        Offset(xAt(t, 0f, w, h), 0f),
+                        Offset(xAt(t, h, w, h), h),
+                        strokeWidth = width,
+                        pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx())) else null,
+                    )
+
+                    drawRect(color.copy(alpha = 0.12f))
+                    if (!timeline) {
+                        // The witnessed share of the layer, filled from the left edge of each row of the trapezoid.
+                        strip(0f, fraction, color.copy(alpha = 0.55f))
+                    } else {
+                        if (tier == Tier.Moments) {
+                            for (s in spans) {
+                                val mid = (s.start + s.end) / 2
+                                if (s.strength > 0f) slanted(mid, color, 2.5.dp.toPx())
+                                else slanted(mid, guide.copy(alpha = 0.25f), 1.5.dp.toPx())
+                            }
+                        } else {
+                            for (s in spans) strip(s.start, s.end, color.copy(alpha = 0.25f + 0.6f * s.strength))
+                        }
+                        for (a in axis.actStarts) slanted(a, guide, 1.dp.toPx(), dashed = true)
+                        slanted(axis.start(readingLine), here, 2.5.dp.toPx())
+                    }
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier.then(
+                        if (timeline) Modifier.background(chip, RoundedCornerShape(8.dp)).padding(horizontal = 6.dp) else Modifier,
+                    ),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Text(tier.label, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
                     Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
+                }
+            }
+        }
+        if (timeline) {
+            // Act names under the base, where the story axis spans the full width.
+            Row(Modifier.fillMaxWidth()) {
+                for ((act, scenes) in play.scenes.groupBy { it.act }) {
+                    Text(
+                        ROMAN[act],
+                        style = MaterialTheme.typography.labelMedium,
+                        fontFamily = FontFamily.Serif,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(scenes.sumOf { it.lines.size }.toFloat()),
+                    )
                 }
             }
         }
@@ -390,6 +518,7 @@ fun LensIdeaScreen(
     index: StoryIndex,
     navigator: Navigator,
     lens: Lens,
+    prefs: Prefs,
     padding: PaddingValues,
     onCharacter: (String) -> Unit,
 ) {
@@ -454,13 +583,13 @@ fun LensIdeaScreen(
         LifeEvents(play, lens) { navigator.go(Tier.Text, index.lineFocus(it)) }
 
         SectionLabel("ПІРАМІДА ОЧИМА ${lens.perspective.genitive.uppercase()}", color)
-        LensPyramidDiagram(play, lens, onTier = { navigator.go(it) }, modifier = Modifier.fillMaxWidth())
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "Заповнена частина рівня — те, що $name бачить і чує на власні очі. Решту історії від цього погляду приховано.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
+        LensPyramid(
+            play = play,
+            lens = lens,
+            readingLine = reading.line,
+            timeline = prefs.pyramidTimeline,
+            onTimeline = prefs::updatePyramidTimeline,
+            onGo = { tier, line -> navigator.go(tier, line?.let(index::lineFocus) ?: navigator.focus) },
         )
         Spacer(Modifier.height(20.dp))
         Surface(

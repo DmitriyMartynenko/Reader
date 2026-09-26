@@ -168,7 +168,7 @@ fun App(
                 Tier.Idea -> {
                     val onName: (String) -> Unit = { open(Sheet.Profile(it, navigator.readerFocus.scene)) }
                     if (lens == null) IdeaScreen(play, index, navigator, padding, onName)
-                    else LensIdeaScreen(play, index, navigator, lens, padding, onName)
+                    else LensIdeaScreen(play, index, navigator, lens, prefs, padding, onName)
                 }
                 Tier.Acts -> ActsScreen(play, index, navigator, lens, padding, openProfile)
                 Tier.Scenes -> ScenesScreen(play, index, navigator, lens, padding, openProfile)

@@ -102,6 +102,33 @@ class ScreensTest {
     fun lens4_textDesdemonaAsleep() = snapApp(Tier.Text, line = 1193, lens = "desdemona")
 
     @Test
+    fun lensPyramid_shareOthello() = snapLensPyramid("othello", timeline = false)
+
+    @Test
+    fun lensPyramid_timelineOthello() = snapLensPyramid("othello", timeline = true)
+
+    @Test
+    fun lensPyramid_timelineDesdemona() = snapLensPyramid("desdemona", timeline = true)
+
+    @Test
+    fun lensPyramid_timelineBiancaDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapLensPyramid("bianca", timeline = true)
+    }
+
+    private fun snapLensPyramid(id: String, timeline: Boolean) {
+        paparazzi.snapshot {
+            TestHost {
+                Surface(color = MaterialTheme.colorScheme.background) {
+                    Column(Modifier.fillMaxWidth().padding(24.dp)) {
+                        LensPyramid(play, TestData.lens(id), readingLine = 542, timeline = timeline, onTimeline = {}, onGo = { _, _ -> })
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
     fun sheet_lensChooser() = snapSheet(Sheet.Lens)
 
     @Test
