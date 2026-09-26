@@ -132,13 +132,31 @@ if (guide) {
   scenes.push(...g.units);
   pyramid = { ...pyramid, scenes: g.summaries };
 }
+
+// A guide's perspectives point at beats as "<act>.<unit>#<n>", the n-th beat of a unit, so adding a
+// beat elsewhere does not shift them; here they become beat ids like the lines of a play.
+const perspectives = read('perspectives.json');
+function beatId(ref, where) {
+  if (typeof ref === 'number') return ref;
+  const m = /^(\d+)\.(\d+)#(\d+)$/.exec(ref);
+  const unit = m && scenes.find(s => s.act === +m[1] && s.scene === +m[2]);
+  const item = unit && unit.items[+m[3] - 1];
+  if (!item) { errors.push(`${where}: no beat ${ref}`); return 0; }
+  return item.id;
+}
+for (const p of perspectives.perspectives) {
+  if (p.death !== undefined) p.death = beatId(p.death, `${p.id} death`);
+  for (const kind of ['phases', 'events']) for (const e of p[kind]) e.line = beatId(e.line, `${p.id} ${kind}`);
+}
+if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
+
 const book = {
   format: 1,
   meta,
   play: { scenes },
   characters: read('characters.json').characters,
   pyramid,
-  perspectives: read('perspectives.json'),
+  perspectives,
 };
 
 const assets = path.join(root, 'app/src/main/assets/books');

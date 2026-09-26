@@ -204,6 +204,18 @@ class ScreensTest {
     fun guideLens_exley() = snapApp(Tier.Idea, line = guideBeat(5, 5), lens = "exley", book = guide)
 
     @Test
+    fun guide_lensChooser() = snapSheet(Sheet.Lens, book = guide, scene = guide.scenes.first { it.act == 3 && it.number == 3 })
+
+    @Test
+    fun guideLens_dudley() = snapApp(Tier.Idea, line = guideBeat(3, 3, 3), lens = "smith", book = guide)
+
+    @Test
+    fun guideLens_lynnScenes() = snapApp(Tier.Scenes, line = guideBeat(3, 20), lens = "bracken", book = guide)
+
+    @Test
+    fun guideLens_inezRetelling() = snapApp(Tier.Text, line = guideBeat(3, 7), lens = "soto", book = guide)
+
+    @Test
     fun guide_sheetWithCopy() {
         val copy = OwnCopy(guide.scenes.map { CopySection("Розділ", listOf("…")) })
         paparazzi.snapshot { TestHost { SheetFrame { GuideSheet(guide, CopyState.Ready(copy), {}, {}) } } }
@@ -244,13 +256,13 @@ class ScreensTest {
         }
     }
 
-    private fun snapSheet(sheet: Sheet, update: Release? = null) {
+    private fun snapSheet(sheet: Sheet, update: Release? = null, book: Play = play, scene: Scene = temptationScene) {
         val prefs = Prefs(null)
         val updates = UpdateController(null, prefs).apply { available = update }
         paparazzi.snapshot {
             TestHost {
                 SheetFrame {
-                    SheetContent(play, prefs, updates, sheet, canGoBack = false, currentScene = temptationScene)
+                    SheetContent(book, prefs, updates, sheet, canGoBack = false, currentScene = scene)
                 }
             }
         }

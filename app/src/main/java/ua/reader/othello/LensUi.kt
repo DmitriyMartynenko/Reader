@@ -186,7 +186,7 @@ fun LensChooser(play: Play, current: String?, onPick: (String?) -> Unit) {
         }
     }) {
         Text("Автор", style = MaterialTheme.typography.titleMedium)
-        Text("Бачить усе: кожну сцену, кожне слово вбік", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Бачить усе: кожну подію, кожну таємницю", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
     for ((id, p) in play.perspectives) {
         val lens = Lens(play, p)
@@ -274,9 +274,11 @@ fun LifeLine(play: Play, lens: Lens, readingScene: Int, onScene: (Int) -> Unit) 
             }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            val total = acts.values.sumOf { it.size }.toFloat()
             for ((act, scenes) in acts) {
+                // An act of a unit or two (a novel's prologue) is too narrow for its label.
                 Text(
-                    play.terms.actShort(act),
+                    if (scenes.size / total >= 0.04f) play.terms.actShort(act) else "",
                     maxLines = 1,
                     softWrap = false,
                     style = MaterialTheme.typography.labelSmall,
@@ -498,11 +500,12 @@ fun LensPyramidDiagram(
         if (timeline) {
             // Act names under the base, where the story axis spans the full width.
             Row(Modifier.fillMaxWidth()) {
+                val total = play.scenes.sumOf { it.lines.size }.toFloat()
                 for ((act, scenes) in play.scenes.groupBy { it.act }) {
                     Text(
-                        play.terms.actShort(act),
-                    maxLines = 1,
-                    softWrap = false,
+                        if (scenes.sumOf { it.lines.size } / total >= 0.04f) play.terms.actShort(act) else "",
+                        maxLines = 1,
+                        softWrap = false,
                         style = MaterialTheme.typography.labelMedium,
                         fontFamily = FontFamily.Serif,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -576,7 +579,7 @@ fun LensIdeaScreen(
         LifeLine(play, lens, reading.scene) { navigator.go(Tier.Scenes, index.sceneStart(it)) }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Клітинка — ${play.terms.scene[0]}. Колір — стан $name наприкінці, насиченість — яку частину видно цими очима. Крапка — де ви зараз.",
+            "Клітинка — ${play.terms.scene[0]}. Колір — стан ${lens.perspective.genitive} наприкінці, насиченість — яку частину видно цими очима. Крапка — де ви зараз.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

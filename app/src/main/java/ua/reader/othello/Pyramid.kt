@@ -526,7 +526,7 @@ fun ScenesScreen(
                             val seen = s.moments.count { lens.perception(it.lineId).perceives }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 lens.phaseAtSceneEnd(s.sceneIndex)?.let { PhaseChip(it); Spacer(Modifier.width(8.dp)) }
-                                ZoomHint("${if (presence > 0.9f) "усю сцену" else "частину сцени"} · бачить $seen з ${s.moments.size}")
+                                ZoomHint("${if (presence > 0.9f) "від початку до кінця" else "частково"} · бачить $seen з ${s.moments.size}")
                             }
                         } else {
                             ZoomHint(uaPlural(s.moments.size, "ключовий момент", "ключові моменти", "ключових моментів"))

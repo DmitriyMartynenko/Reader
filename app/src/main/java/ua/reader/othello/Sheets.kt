@@ -264,7 +264,7 @@ private fun ProfileSheet(
         Section("Що відомо на цей момент", "до ${play.terms.upTo(scene.act)} включно") {
             if (known.isEmpty()) {
                 Text(
-                    "Цей персонаж ще не з'являвся на сцені.",
+                    "Цей персонаж ще не з'являвся в історії.",
                     style = MaterialTheme.typography.bodyMedium,
                     fontStyle = FontStyle.Italic,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
