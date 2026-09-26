@@ -124,7 +124,7 @@ fun LensBanner(lens: Lens, phase: Phase?, onOpen: () -> Unit, onClose: () -> Uni
                     color = color,
                 )
                 Text(
-                    phase?.let { "зараз: " + it.label.replaceFirstChar(Char::lowercase) } ?: "ще не на сцені",
+                    phase?.let { "зараз: " + it.label.replaceFirstChar(Char::lowercase) } ?: "ще не з'явився в історії",
                     style = MaterialTheme.typography.labelSmall,
                     color = phase?.tone?.color?.forTheme() ?: MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -201,7 +201,7 @@ fun LensChooser(play: Play, current: String?, onPick: (String?) -> Unit) {
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                "${lens.presentScenes.size} з ${play.scenes.size} сцен · бачить ${lens.seenMoments} з ${play.pyramid.moments.size} моментів",
+                "${lens.presentScenes.size} з ${play.terms.scenes(play.scenes.size)} · бачить ${lens.seenMoments} з ${play.pyramid.moments.size} моментів",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -276,7 +276,9 @@ fun LifeLine(play: Play, lens: Lens, readingScene: Int, onScene: (Int) -> Unit) 
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             for ((act, scenes) in acts) {
                 Text(
-                    roman(act),
+                    play.terms.actShort(act),
+                    maxLines = 1,
+                    softWrap = false,
                     style = MaterialTheme.typography.labelSmall,
                     fontFamily = FontFamily.Serif,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -329,7 +331,7 @@ fun LifeEvents(play: Play, lens: Lens, onEvent: (Int) -> Unit) {
                 Box(Modifier.size(10.dp).background(color, CircleShape))
                 Spacer(Modifier.width(12.dp))
                 Text(
-                    "${roman(scene.act)}.${scene.number}",
+                    play.terms.sceneShort(scene),
                     style = MaterialTheme.typography.labelMedium,
                     fontFamily = FontFamily.Serif,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -406,7 +408,7 @@ fun LensPyramidDiagram(
         for (tier in Tier.entries) {
             val (fraction, label) = when (tier) {
                 Tier.Idea -> 1f to if (timeline) {
-                    "${roman(firstScene.act)}.${firstScene.number} — ${roman(lastScene.act)}.${lastScene.number}"
+                    "${play.terms.sceneShort(firstScene)} — ${play.terms.sceneShort(lastScene)}"
                 } else {
                     "власна ідея"
                 }
@@ -498,7 +500,9 @@ fun LensPyramidDiagram(
             Row(Modifier.fillMaxWidth()) {
                 for ((act, scenes) in play.scenes.groupBy { it.act }) {
                     Text(
-                        roman(act),
+                        play.terms.actShort(act),
+                    maxLines = 1,
+                    softWrap = false,
                         style = MaterialTheme.typography.labelMedium,
                         fontFamily = FontFamily.Serif,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -572,7 +576,7 @@ fun LensIdeaScreen(
         LifeLine(play, lens, reading.scene) { navigator.go(Tier.Scenes, index.sceneStart(it)) }
         Spacer(Modifier.height(4.dp))
         Text(
-            "Клітинка — сцена. Колір — стан $name наприкінці сцени, насиченість — яку частину сцени видно цими очима. Крапка — де ви зараз.",
+            "Клітинка — ${play.terms.scene[0]}. Колір — стан $name наприкінці, насиченість — яку частину видно цими очима. Крапка — де ви зараз.",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,

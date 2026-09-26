@@ -1,6 +1,16 @@
 package ua.reader.othello
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -74,6 +84,34 @@ fun App(
     }
     var sheets by remember { mutableStateOf(listOf<Sheet>()) }
     val tier = navigator.tier
+
+    // A guide's text lives only in the reader's own imported copy, kept in private storage.
+    val context = LocalContext.current
+    val store = remember { CopyStore(File(context.filesDir, "copies")) }
+    var copyState by remember(play) {
+        mutableStateOf(if (play.meta.guide == null) CopyState.None else store.load(play.meta.id)?.let { CopyState.Ready(it) } ?: CopyState.None)
+    }
+    var copyChapter by remember { mutableStateOf<Int?>(null) }
+    val scope = rememberCoroutineScope()
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        copyState = CopyState.Importing
+        scope.launch {
+            copyState = withContext(Dispatchers.IO) {
+                try {
+                    val bytes = context.contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+                    val copy = CopyImport.match(CopyImport.read(bytes), play.scenes)
+                    store.save(play.meta.id, copy)
+                    CopyState.Ready(copy)
+                } catch (e: ImportException) {
+                    CopyState.Failed(e.message.orEmpty())
+                } catch (e: Exception) {
+                    CopyState.Failed("Не вдалося прочитати файл.")
+                }
+            }
+        }
+    }
+    val ownCopy = (copyState as? CopyState.Ready)?.copy
 
     LaunchedEffect(navigator.lens) { book.updateLens(navigator.lens) }
 
@@ -191,6 +229,8 @@ fun App(
                     onCharacter = { open(Sheet.Profile(it)) },
                     onMoment = { navigator.go(Tier.Moments, index.momentFocus(it)) },
                     onIdea = { navigator.go(Tier.Idea) },
+                    onReadCopy = if (ownCopy != null) { i -> copyChapter = i } else null,
+                    hasCopy = { ownCopy != null && it < ownCopy.units.size },
                 )
             }
         }
@@ -216,6 +256,28 @@ fun App(
                 navigator.useLens(it)
             },
             updates = updates,
+            copyState = copyState,
+            onImport = { picker.launch(arrayOf("*/*")) },
+            onRemoveCopy = {
+                store.remove(play.meta.id)
+                copyState = CopyState.None
+            },
+        )
+    }
+
+    val chapter = copyChapter
+    if (ownCopy != null && chapter != null) {
+        CopyChapterScreen(
+            play = play,
+            copy = ownCopy,
+            sceneIndex = chapter,
+            prefs = prefs,
+            onScene = { copyChapter = it },
+            onCharacter = { open(Sheet.Profile(it, chapter)) },
+            onClose = {
+                copyChapter = null
+                navigator.go(Tier.Text, index.sceneStart(chapter))
+            },
         )
     }
 }
@@ -255,7 +317,7 @@ private fun AppTopBar(
         },
         title = {
             Column(Modifier.clickable(enabled = tier == Tier.Text, onClick = onTitle)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Text(
                     subtitle,
                     style = MaterialTheme.typography.bodySmall,
@@ -266,6 +328,11 @@ private fun AppTopBar(
             }
         },
         actions = {
+            if (play.meta.guide != null) {
+                IconButton(onClick = { onOpen(Sheet.Guide) }) {
+                    Icon(Icons.Filled.Info, contentDescription = "Путівник і ваш примірник")
+                }
+            }
             LensButton(lens) { onOpen(Sheet.Lens) }
             IconButton(onClick = { onOpen(Sheet.AllCharacters) }) {
                 Icon(Icons.Filled.Person, contentDescription = "Усі персонажі")

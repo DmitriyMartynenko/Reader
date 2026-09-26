@@ -170,7 +170,7 @@ class Lens(val play: Play, val perspective: Perspective) {
         Perception.Aside -> "говорять убік"
         Perception.Unconscious -> "без свідомості"
         Perception.Asleep -> "спить"
-        Perception.Absent -> "немає на сцені"
+        Perception.Absent -> play.terms.offstage
         Perception.Dead -> "уже немає серед живих"
     }
 }

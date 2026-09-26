@@ -27,7 +27,8 @@ class BookContractTest {
             assertTrue(entry.id, play.scenes.isNotEmpty())
             for (line in play.lines.values) {
                 assertTrue("${entry.id} #${line.id} is empty", line.uk.isNotBlank())
-                if (!line.isDirection) assertTrue("${entry.id} #${line.id}: ${line.speaker}", line.speaker in play.characters)
+                if (!line.isDirection && !line.isProse) assertTrue("${entry.id} #${line.id}: ${line.speaker}", line.speaker in play.characters)
+                for (id in line.hear) assertTrue("${entry.id} #${line.id}: $id", id in play.characters)
             }
             for (c in play.characters.values) for (r in c.relations) {
                 assertTrue("${entry.id} ${c.id} -> ${r.characterId}", r.characterId in play.characters)

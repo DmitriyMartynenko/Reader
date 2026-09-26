@@ -48,6 +48,6 @@ Run { git add -A }
 if (git status --porcelain) { Run { git commit -m "Release v$Version" -m $Notes } }
 Run { git tag "v$Version" }
 Run { git push origin HEAD --tags }
-Run { gh release create "v$Version" $apk --title "Отелло $Version" --notes $Notes }
+Run { gh release create "v$Version" $apk --title "Бібліотека $Version" --notes $Notes }
 Pop-Location
 Write-Host "Опубліковано v$Version. Застосунки підхоплять оновлення протягом доби або одразу через Налаштування -> Перевірити."

@@ -20,8 +20,13 @@ data class Line(
     val unconscious: Set<String> = emptySet(),
     val asleep: Set<String> = emptySet(),
     val shutOut: Set<String> = emptySet(),
+    /** A retelling beat of a guide book: prose without a speaker; [hear] holds who takes part. */
+    val isProse: Boolean = false,
 ) {
-    val isDirection get() = speaker == null
+    val isDirection get() = speaker == null && !isProse
+
+    /** Who acts in the line: the speaker of a play, the people in a beat of a retelling. */
+    val actors: List<String> get() = speaker?.let(::listOf) ?: if (isProse) hear.toList() else emptyList()
 }
 
 data class Scene(
@@ -31,6 +36,14 @@ data class Scene(
     val place: String,
     val placeEn: String,
     val lines: List<Line>,
+    /** How a novel names the unit instead of "Сцена N": "Пролог", "Розділ 14", "Календар". */
+    val label: String? = null,
+    /** Short tag for tight spots, e.g. "14" or "К". */
+    val short: String? = null,
+    /** prologue, chapter or calendar: used to match an imported copy to the units. */
+    val kind: String? = null,
+    /** Whose eyes a chapter is told through. */
+    val pov: String? = null,
 )
 
 data class Relation(val characterId: String, val text: String)
@@ -64,20 +77,47 @@ data class Terms(
     val scenesTier: String,
     val scenesLocative: String,
     val line: List<String>,
+    /** Per-act names where "Акт II" does not fit: a novel's "Пролог", "Частина I"… */
+    val actLabels: Map<Int, String> = emptyMap(),
+    val actShorts: Map<Int, String> = emptyMap(),
+    val actGenitiveLabels: Map<Int, String> = emptyMap(),
+    /** The base tier: "Текст" for a full text, "Переказ" for a guide. */
+    val textTier: String = "Текст",
+    /** Why a character misses a line: "немає на сцені" in a play. */
+    val offstage: String = "немає на сцені",
 ) {
     fun acts(n: Int) = uaPlural(n, act[0], act[1], act[2])
     fun scenes(n: Int) = uaPlural(n, scene[0], scene[1], scene[2])
     fun lines(n: Int) = uaPlural(n, line[0], line[1], line[2])
 
-    /** "Акт III · Сцена 3" */
-    fun place(scene: Scene) = "$actTitle ${roman(scene.act)} · $sceneTitle ${scene.number}"
+    /** "Акт III", "Частина II", "Пролог". */
+    fun actLabel(act: Int) = actLabels[act] ?: "$actTitle ${roman(act)}"
+
+    /** "III", "Пр". */
+    fun actShort(act: Int) = actShorts[act] ?: roman(act)
+
+    /** "акту III", "прологу": for "до … включно". */
+    fun upTo(act: Int) = actGenitiveLabels[act] ?: "$actGenitive ${roman(act)}"
+
+    /** "Сцена 3", "Розділ 14". */
+    fun sceneLabel(scene: Scene) = scene.label ?: "$sceneTitle ${scene.number}"
+
+    /** "III.3", "14". */
+    fun sceneShort(scene: Scene) = scene.short ?: "${roman(scene.act)}.${scene.number}"
+
+    /** "Акт III · Сцена 3"; a unit named like its act ("Пролог") is named once. */
+    fun place(scene: Scene): String {
+        val act = actLabel(scene.act)
+        val unit = sceneLabel(scene)
+        return if (act == unit) act else "$act · $unit"
+    }
 
     fun tier(tier: Tier) = when (tier) {
         Tier.Idea -> "Ідея"
         Tier.Acts -> actsTier
         Tier.Scenes -> scenesTier
         Tier.Moments -> "Моменти"
-        Tier.Text -> "Текст"
+        Tier.Text -> textTier
     }
 
     companion object {
@@ -92,6 +132,11 @@ data class Terms(
             scenesTier = o.getString("scenesTier"),
             scenesLocative = o.getString("scenesLocative"),
             line = o.getJSONArray("line").strings(),
+            actLabels = o.intMap("actLabels"),
+            actShorts = o.intMap("actShorts"),
+            actGenitiveLabels = o.intMap("actGenitiveLabels"),
+            textTier = o.optString("textTier").ifEmpty { "Текст" },
+            offstage = o.optString("offstage").ifEmpty { "немає на сцені" },
         )
     }
 }
@@ -109,6 +154,8 @@ data class BookMeta(
     val originalHint: String,
     val credits: String,
     val terms: Terms,
+    /** Set for a guide to a work still under copyright: the app carries no text of its own. */
+    val guide: Guide? = null,
 ) {
     companion object {
         fun parse(o: JSONObject) = BookMeta(
@@ -123,9 +170,13 @@ data class BookMeta(
             originalHint = o.getString("originalHint"),
             credits = o.getString("credits"),
             terms = Terms.parse(o.getJSONObject("terms")),
+            guide = o.optJSONObject("guide")?.let { Guide(it.getString("notice"), it.getString("importHint")) },
         )
     }
 }
+
+/** Why a book is a guide and how to add one's own copy of the work. */
+data class Guide(val notice: String, val importHint: String)
 
 /** One book of the library, fully loaded: text, characters, pyramid and perspectives. */
 class Play(
@@ -146,8 +197,7 @@ class Play(
     init {
         val counts = mutableMapOf<String, Int>()
         val first = mutableMapOf<String, Pair<Int, Int>>()
-        for (scene in scenes) for (line in scene.lines) {
-            val sp = line.speaker ?: continue
+        for (scene in scenes) for (line in scene.lines) for (sp in line.actors) {
             counts[sp] = (counts[sp] ?: 0) + 1
             first.putIfAbsent(sp, scene.index to line.id)
         }
@@ -168,8 +218,9 @@ class Play(
 
     fun characterForName(match: String): String? = nameToId[match.lowercase()]
 
+    /** Who speaks in a scene of a play, or takes part in a chapter of a guide. */
     fun speakersOf(scene: Scene): List<Character> =
-        scene.lines.mapNotNull { it.speaker }.distinct().mapNotNull { characters[it] }
+        scene.lines.flatMap { it.actors }.distinct().mapNotNull { characters[it] }
 
     companion object {
         /** Opens a book of the library: assets/books/<file>, as written by tools/build-book.js. */
@@ -186,19 +237,24 @@ class Play(
                     act = s.getInt("act"),
                     number = s.getInt("scene"),
                     place = s.getString("place"),
-                    placeEn = s.getString("placeEn"),
+                    placeEn = s.optString("placeEn"),
+                    label = s.optString("label").ifEmpty { null },
+                    short = s.optString("short").ifEmpty { null },
+                    kind = s.optString("kind").ifEmpty { null },
+                    pov = s.optString("pov").ifEmpty { null },
                     lines = s.getJSONArray("items").objects().map { l ->
                         fun ids(key: String) = l.optJSONArray(key)?.strings()?.toSet().orEmpty()
                         Line(
                             id = l.getInt("id"),
                             uk = l.getString("uk"),
-                            en = l.getString("en"),
-                            speaker = if (l.has("d")) null else l.getString("sp"),
+                            en = l.optString("en"),
+                            speaker = if (l.has("d") || l.has("p")) null else l.getString("sp"),
                             hear = ids("h"),
                             see = ids("s"),
                             unconscious = ids("u"),
                             asleep = ids("z"),
                             shutOut = ids("x"),
+                            isProse = l.has("p"),
                         )
                     },
                 )
@@ -263,6 +319,9 @@ data class LibraryEntry(
 }
 
 internal fun JSONArray.objects(): List<JSONObject> = List(length()) { getJSONObject(it) }
+internal fun JSONObject.intMap(key: String): Map<Int, String> =
+    optJSONObject(key)?.let { o -> o.keys().asSequence().associate { it.toInt() to o.getString(it) } }.orEmpty()
+
 internal fun JSONArray.strings(): List<String> = List(length()) { getString(it) }
 
 /** "#RRGGBB" to an opaque colour, without Android's parser so plain JVM tests can load the data. */

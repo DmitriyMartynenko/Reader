@@ -196,14 +196,17 @@ private fun Cover(entry: LibraryEntry, modifier: Modifier) {
     ) {
         Box(Modifier.fillMaxSize().border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(4.dp)).padding(4.dp)) {
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Long words must not break mid-word on the narrow cover.
+                val longest = entry.title.split(' ', '-').maxOf { it.length }
+                val size = if (longest > 7) 10f else 14f
                 Text(
-                    entry.title,
+                    entry.title.replace("-", "-​"),
                     color = Color.White,
                     fontFamily = FontFamily.Serif,
                     fontWeight = FontWeight.SemiBold,
-                    fontSize = 14.sp,
+                    fontSize = size.sp,
                     textAlign = TextAlign.Center,
-                    lineHeight = 17.sp,
+                    lineHeight = (size * 1.2f).sp,
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(

@@ -77,7 +77,7 @@ fun tierSubtitle(play: Play, tier: Tier): String = when (tier) {
     Tier.Acts -> "Історія в ${play.pyramid.acts.size} ${play.terms.actsLocative}"
     Tier.Scenes -> "Історія в ${play.scenes.size} ${play.terms.scenesLocative}"
     Tier.Moments -> "Історія в ${play.pyramid.moments.size} ключових моментах"
-    Tier.Text -> "Повний текст"
+    Tier.Text -> if (play.meta.guide != null) "Переказ своїми словами" else "Повний текст"
 }
 
 private val DarkInk = Color(0xFF3A0B13)
@@ -386,7 +386,7 @@ fun ActsScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        "${play.terms.actTitle.uppercase()} ${roman(act.act)}",
+                        play.terms.actLabel(act.act).uppercase(),
                         style = MaterialTheme.typography.labelLarge,
                         letterSpacing = 0.12.em,
                         color = MaterialTheme.colorScheme.primary,
@@ -471,7 +471,7 @@ fun ScenesScreen(
         }
         items(rows, key = { if (it is SceneRow.Item) "s${it.summary.sceneIndex}" else "a${(it as SceneRow.ActTitle).act.act}" }) { row ->
             when (row) {
-                is SceneRow.ActTitle -> TierGroupTitle("${play.terms.actTitle} ${roman(row.act.act)} · ${row.act.title}") {
+                is SceneRow.ActTitle -> TierGroupTitle("${play.terms.actLabel(row.act.act)} · ${row.act.title}") {
                     navigator.go(Tier.Acts, index.actStart(row.act.act))
                 }
                 is SceneRow.Item -> {
@@ -485,7 +485,7 @@ fun ScenesScreen(
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                "${play.terms.sceneTitle.uppercase()} ${scene.number}",
+                                play.terms.sceneLabel(scene).uppercase(),
                                 style = MaterialTheme.typography.labelMedium,
                                 letterSpacing = 0.12.em,
                                 color = MaterialTheme.colorScheme.primary,

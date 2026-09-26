@@ -144,6 +144,8 @@ sealed interface Sheet {
     data object AllCharacters : Sheet
     data object Settings : Sheet
     data object Lens : Sheet
+    /** A guide's notice and the reader's own copy. */
+    data object Guide : Sheet
 }
 
 /** The base of the pyramid: the full text as one continuous list, or what [lens] perceives of it. */
@@ -158,6 +160,9 @@ fun PlayText(
     onCharacter: (String) -> Unit,
     onMoment: (Moment) -> Unit,
     onIdea: () -> Unit,
+    /** Opens a chapter of the reader's own imported copy; null when there is none. */
+    onReadCopy: ((Int) -> Unit)? = null,
+    hasCopy: (Int) -> Boolean = { false },
 ) {
     val moments = remember(play) { play.pyramid.moments.associateBy { it.lineId } }
     val expanded = remember(layout) { mutableStateMapOf<String, Boolean>() }
@@ -169,13 +174,17 @@ fun PlayText(
         items(layout.rows, key = { it.key }) { row ->
             when (row) {
                 is ReaderRow.ActHeader -> ActHeader(play.terms, row.scene.act, play.pyramid.act(row.scene.act).title)
-                is ReaderRow.SceneHeader -> SceneHeader(play.terms, row.scene, play.pyramid.scenes[row.scene.index].title)
+                is ReaderRow.SceneHeader -> SceneHeader(
+                    play, row.scene, play.pyramid.scenes[row.scene.index].title, onCharacter,
+                    onReadCopy = onReadCopy?.takeIf { hasCopy(row.scene.index) }?.let { read -> { read(row.scene.index) } },
+                )
                 is ReaderRow.Direction -> LineBlock(moments[row.line.id], lens?.eventsByLine?.get(row.line.id), onMoment) {
                     Watching(lens, row.watching, row.runStart) { DirectionRow(play, row.line, prefs, onCharacter) }
                 }
                 is ReaderRow.Speech -> LineBlock(moments[row.line.id], lens?.eventsByLine?.get(row.line.id), onMoment) {
                     Watching(lens, row.watching, row.runStart) {
-                        SpeechRow(play, row.line, prefs, onCharacter, own = lens != null && row.line.speaker == lens.id)
+                        if (row.line.isProse) ProseRow(play, row.line, prefs, onCharacter)
+                        else SpeechRow(play, row.line, prefs, onCharacter, own = lens != null && row.line.speaker == lens.id)
                     }
                 }
                 is ReaderRow.Hidden -> if (lens != null) {
@@ -275,7 +284,7 @@ private fun HiddenRow(
             val verb = if (speakers.size > 1) "говорять" else "говорить"
             "${speakers.joinToString(" і ")} $verb убік — $name не чує"
         }
-        Perception.Absent -> "$name немає на сцені"
+        Perception.Absent -> "$name ${play.terms.offstage}"
         Perception.Unconscious -> "$name без свідомості"
         Perception.Asleep -> "$name спить"
         Perception.Dead -> "$name уже немає серед живих"
@@ -294,7 +303,7 @@ private fun HiddenRow(
             Column(Modifier.weight(1f)) {
                 Text(why, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(
-                    uaPlural(row.lines.size, "рядок", "рядки", "рядків") + " поза цим поглядом",
+                    play.terms.lines(row.lines.size) + " поза цим поглядом",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -308,7 +317,11 @@ private fun HiddenRow(
         if (expanded) {
             Column(Modifier.alpha(0.5f)) {
                 for (line in row.lines) {
-                    if (line.isDirection) DirectionRow(play, line, prefs, onCharacter) else SpeechRow(play, line, prefs, onCharacter)
+                    when {
+                        line.isDirection -> DirectionRow(play, line, prefs, onCharacter)
+                        line.isProse -> ProseRow(play, line, prefs, onCharacter)
+                        else -> SpeechRow(play, line, prefs, onCharacter)
+                    }
                 }
             }
         }
@@ -349,7 +362,7 @@ private fun ActHeader(terms: Terms, act: Int, title: String) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "${terms.actTitle} ${roman(act)}",
+            terms.actLabel(act),
             style = MaterialTheme.typography.headlineMedium,
             fontFamily = FontFamily.Serif,
             color = MaterialTheme.colorScheme.primary,
@@ -367,13 +380,14 @@ private fun ActHeader(terms: Terms, act: Int, title: String) {
 }
 
 @Composable
-private fun SceneHeader(terms: Terms, scene: Scene, title: String) {
+private fun SceneHeader(play: Play, scene: Scene, title: String, onCharacter: (String) -> Unit, onReadCopy: (() -> Unit)?) {
+    val terms = play.terms
     Column(
         Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Text(
-            "${terms.sceneTitle.uppercase()} ${scene.number}",
+            terms.sceneLabel(scene).uppercase(),
             style = MaterialTheme.typography.labelMedium,
             letterSpacing = 0.15.em,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -391,7 +405,36 @@ private fun SceneHeader(terms: Terms, scene: Scene, title: String) {
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
         )
+        val pov = scene.pov?.let(play.characters::get)
+        if (pov != null) {
+            Text(
+                "Очима: ${pov.name}",
+                style = MaterialTheme.typography.labelMedium,
+                color = pov.color.forTheme(),
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clip(RoundedCornerShape(50))
+                    .clickable { onCharacter(pov.id) }
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+        if (onReadCopy != null) {
+            TextButton(onClick = onReadCopy) { Text("Читати у вашому примірнику") }
+        }
     }
+}
+
+/** A beat of a retelling: plain prose, names clickable. */
+@Composable
+private fun ProseRow(play: Play, line: Line, prefs: Prefs, onCharacter: (String) -> Unit) {
+    Text(
+        formatText(line.uk, play, prefs.highlightNames, onCharacter),
+        fontFamily = FontFamily.Serif,
+        fontSize = prefs.fontSize.sp,
+        lineHeight = (prefs.fontSize * 1.45f).sp,
+        color = MaterialTheme.colorScheme.onBackground,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+    )
 }
 
 @Composable

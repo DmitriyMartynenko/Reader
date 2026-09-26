@@ -20,8 +20,64 @@ const read = name => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
 
 const meta = read('book.json');
 const build = read('build.json');
-const original = read('source/original.json');
+const guide = build.format === 'guide';
+const characterIds = new Set(read('characters.json').characters.map(c => c.id));
 
+
+// A guide to a work under copyright: no text of the work, only a retelling in our own words.
+// source/guide/<act>.txt holds the units of one act (a novel's part):
+//   == <kind> | <label> | <short> | <pov or ->     kind: prologue, chapter, calendar
+//   title: …   place: …   summary: …
+//   ! <key moment>                                 attaches to the next beat
+//   [<ids who take part>] <beat of the retelling>
+function readGuide() {
+  const dir2 = path.join(dir, 'source/guide');
+  const acts = fs.readdirSync(dir2).filter(f => /^\d+\.txt$/.test(f)).map(f => +f.slice(0, -4)).sort((x, y) => x - y);
+  const out = [], summaries = [];
+  let id = 0;
+  for (const act of acts) {
+    let unit = null, pending = null, number = 0;
+    const lines = fs.readFileSync(path.join(dir2, `${act}.txt`), 'utf8').replace(/\r/g, '').split('\n');
+    lines.forEach((raw, n) => {
+      const line = raw.trim();
+      const where = `${act}.txt:${n + 1}`;
+      if (!line || line.startsWith('//')) return;
+      let m;
+      if ((m = line.match(/^== (\w+) \| ([^|]+) \| ([^|]+) \| (\S+)$/))) {
+        number++;
+        unit = { act, scene: number, kind: m[1], label: m[2].trim(), short: m[3].trim(), place: '', items: [] };
+        if (m[4] !== '-') { unit.pov = m[4]; if (!characterIds.has(m[4])) errors.push(`${where}: unknown pov ${m[4]}`); }
+        out.push(unit);
+        summaries.push({ act, scene: number, title: '', summary: '', moments: [] });
+        return;
+      }
+      if (!unit) { errors.push(`${where}: text before the first unit`); return; }
+      const sum = summaries[summaries.length - 1];
+      if ((m = line.match(/^(title|place|summary): (.+)$/))) {
+        if (m[1] === 'place') unit.place = m[2]; else sum[m[1]] = m[2];
+        return;
+      }
+      if ((m = line.match(/^! (.+)$/))) { pending = m[1]; return; }
+      if ((m = line.match(/^\[([a-z0-9_ -]*)\] (.+)$/))) {
+        const h = m[1].split(/\s+/).filter(Boolean);
+        for (const c of h) if (!characterIds.has(c)) errors.push(`${where}: unknown character ${c}`);
+        const item = { id: ++id, uk: m[2], p: 1 };
+        if (h.length) item.h = h;
+        unit.items.push(item);
+        if (pending) { sum.moments.push({ line: id, text: pending }); pending = null; }
+        return;
+      }
+      errors.push(`${where}: cannot read «${line.slice(0, 40)}»`);
+    });
+  }
+  for (const [i, u] of out.entries()) {
+    const s = summaries[i];
+    if (!u.items.length) errors.push(`${u.act}.${u.scene} has no beats`);
+    if (!s.title || !s.summary || !u.place) errors.push(`${u.act}.${u.scene} lacks title, place or summary`);
+    if (!s.moments.length) errors.push(`${u.act}.${u.scene} has no key moment`);
+  }
+  return { units: out, summaries };
+}
 function readTranslation(file) {
   const out = { place: '', items: {} };
   let cur = null;
@@ -41,7 +97,7 @@ function readTranslation(file) {
 
 const errors = [];
 const scenes = [];
-for (const s of original) {
+for (const s of guide ? [] : read('source/original.json')) {
   const tr = readTranslation(path.join(dir, `source/uk/${s.act}-${s.scene}.txt`));
   const items = s.items.map(it => {
     const u = tr.items[it.id];
@@ -63,13 +119,19 @@ if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
 
 // Who perceives each line: h = hears/sees it, s = watches without hearing, u = on stage but
 // unconscious, z = asleep, x = on stage but shut out of an aside.
-const unknown = computePresence(scenes, build.presence);
+const unknown = guide ? [] : computePresence(scenes, build.presence);
 if (unknown.length) {
   console.error('Stage directions the presence rules do not understand:\n' + unknown.join('\n'));
   process.exit(1);
 }
 
-const pyramid = read('pyramid.json');
+let pyramid = read('pyramid.json');
+if (guide) {
+  const g = readGuide();
+  if (errors.length) { console.error(errors.join('\n')); process.exit(1); }
+  scenes.push(...g.units);
+  pyramid = { ...pyramid, scenes: g.summaries };
+}
 const book = {
   format: 1,
   meta,
@@ -92,6 +154,7 @@ const shelf = fs.readdirSync(path.join(root, 'books'))
     const m = JSON.parse(fs.readFileSync(path.join(root, 'books', b, 'book.json'), 'utf8'));
     const idea = JSON.parse(fs.readFileSync(path.join(root, 'books', b, 'pyramid.json'), 'utf8')).idea;
     return { id: m.id, title: m.title, author: m.author, genre: m.genre, year: m.year, cover: m.cover, idea, file: `${m.id}.book.json` };
-  });
+  })
+  .sort((a, b) => a.year - b.year);
 fs.writeFileSync(path.join(assets, 'library.json'), JSON.stringify({ books: shelf }, null, 1));
 console.log(`library: ${shelf.map(b => b.title).join(', ')}`);

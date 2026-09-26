@@ -165,9 +165,9 @@ class ScreensTest {
     )
 
     /** [row] is the pre-1.3 saved position (a row of the full text); [line] is the current one. */
-    private fun snapApp(tier: Tier, row: Int = readingRow, original: Boolean = false, line: Int? = null, lens: String? = null) {
+    private fun snapApp(tier: Tier, row: Int = readingRow, original: Boolean = false, line: Int? = null, lens: String? = null, book: Play = play) {
         val prefs = Prefs(FakePrefs(mapOf("showOriginal" to original)))
-        val book = BookPrefs(
+        val saved = BookPrefs(
             FakePrefs(
                 buildMap {
                     if (line != null) put("line", line) else put("row", row)
@@ -175,7 +175,52 @@ class ScreensTest {
                 },
             ),
         )
-        paparazzi.snapshot { TestHost { App(play, prefs, book, UpdateController(null, prefs), startTier = tier) } }
+        paparazzi.snapshot { TestHost { App(book, prefs, saved, UpdateController(null, prefs), startTier = tier) } }
+    }
+
+    // A guide to a work under copyright: the pyramid in our own words, no text of the novel.
+    private val guide = TestData.book(TestData.shelf.first { it.id == "la-confidential" })
+    private fun guideBeat(act: Int, number: Int, n: Int = 0) = guide.scenes.first { it.act == act && it.number == number }.lines[n].id
+
+    @Test
+    fun guide0_idea() = snapApp(Tier.Idea, line = guideBeat(3, 3), book = guide)
+
+    @Test
+    fun guide1_parts() = snapApp(Tier.Acts, line = guideBeat(3, 3), book = guide)
+
+    @Test
+    fun guide2_chapters() = snapApp(Tier.Scenes, line = guideBeat(3, 3), book = guide)
+
+    @Test
+    fun guide3_moments() = snapApp(Tier.Moments, line = guideBeat(3, 3), book = guide)
+
+    @Test
+    fun guide4_retelling() = snapApp(Tier.Text, line = guideBeat(3, 3), book = guide)
+
+    @Test
+    fun guide4_retellingThroughWhite() = snapApp(Tier.Text, line = guideBeat(3, 4, 1), lens = "white", book = guide)
+
+    @Test
+    fun guideLens_exley() = snapApp(Tier.Idea, line = guideBeat(5, 5), lens = "exley", book = guide)
+
+    @Test
+    fun guide_sheetWithCopy() {
+        val copy = OwnCopy(guide.scenes.map { CopySection("Розділ", listOf("…")) })
+        paparazzi.snapshot { TestHost { SheetFrame { GuideSheet(guide, CopyState.Ready(copy), {}, {}) } } }
+    }
+
+    @Test
+    fun guide_sheetFailed() = paparazzi.snapshot {
+        TestHost { SheetFrame { GuideSheet(guide, CopyState.Failed("Розпізнано 14 з 83 розділів: після «Глава 13» очікувався календар."), {}, {}) } }
+    }
+
+    @Test
+    fun guide_ownCopyChapter() {
+        // Placeholder paragraphs stand in for the reader's own file; the app ships no text of the novel.
+        val copy = OwnCopy(guide.scenes.map { CopySection("ГЛАВА", listOf("Тут буде текст із вашого файлу. Ексле, Вайт і Дадлі підсвічуються.", "Другий абзац.")) })
+        paparazzi.snapshot {
+            TestHost { CopyChapterScreen(guide, copy, guide.scenes.first { it.act == 3 && it.number == 3 }.index, Prefs(null), {}, {}, {}) }
+        }
     }
 
     @Test

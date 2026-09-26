@@ -67,6 +67,9 @@ fun SheetHost(
     lens: String?,
     onLens: (String?) -> Unit,
     updates: UpdateController,
+    copyState: CopyState = CopyState.None,
+    onImport: () -> Unit = {},
+    onRemoveCopy: () -> Unit = {},
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -80,7 +83,8 @@ fun SheetHost(
                 .navigationBarsPadding()
                 .padding(bottom = 24.dp),
         ) {
-            SheetContent(play, prefs, updates, sheet, canGoBack, currentScene, onBack, onOpen, onJumpToLine, lens, onLens)
+            if (sheet == Sheet.Guide) GuideSheet(play, copyState, onImport, onRemoveCopy)
+            else SheetContent(play, prefs, updates, sheet, canGoBack, currentScene, onBack, onOpen, onJumpToLine, lens, onLens)
         }
     }
 }
@@ -108,6 +112,7 @@ fun SheetContent(
         Sheet.AllCharacters -> AllCharactersSheet(play, canGoBack, onBack, onOpen)
         Sheet.Settings -> SettingsSheet(prefs, updates)
         Sheet.Lens -> LensChooser(play, lens, onLens)
+        Sheet.Guide -> {}
     }
 }
 
@@ -151,7 +156,7 @@ private fun CharacterRow(character: Character, detail: String, onClick: () -> Un
 @Composable
 private fun CastSheet(play: Play, scene: Scene, canGoBack: Boolean, onBack: () -> Unit, onOpen: (Sheet) -> Unit) {
     SheetTitle(
-        "Хто в цій сцені",
+        "Хто тут",
         "${play.terms.place(scene)} · ${scene.place}",
         canGoBack, onBack,
     )
@@ -256,7 +261,7 @@ private fun ProfileSheet(
     if (c.arc.isNotEmpty()) {
         val known = c.arc.filterKeys { it <= scene.act }.toSortedMap()
         val later = c.arc.filterKeys { it > scene.act }.toSortedMap()
-        Section("Що відомо на цей момент", "до ${play.terms.actGenitive} ${roman(scene.act)} включно") {
+        Section("Що відомо на цей момент", "до ${play.terms.upTo(scene.act)} включно") {
             if (known.isEmpty()) {
                 Text(
                     "Цей персонаж ще не з'являвся на сцені.",
@@ -265,10 +270,10 @@ private fun ProfileSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            for ((act, text) in known) ArcEntry(act, text, color)
+            for ((act, text) in known) ArcEntry(play.terms.actShort(act), text, color)
             if (later.isNotEmpty()) {
                 if (spoilers) {
-                    for ((act, text) in later) ArcEntry(act, text, MaterialTheme.colorScheme.outline, spoiler = true)
+                    for ((act, text) in later) ArcEntry(play.terms.actShort(act), text, MaterialTheme.colorScheme.outline, spoiler = true)
                     TextButton(onClick = { spoilers = false }) { Text("Сховати, що буде далі") }
                 } else {
                     OutlinedButton(onClick = { spoilers = true }, modifier = Modifier.padding(top = 4.dp)) {
@@ -355,7 +360,7 @@ private fun Section(title: String, subtitle: String? = null, content: @Composabl
 }
 
 @Composable
-private fun ArcEntry(act: Int, text: String, accent: androidx.compose.ui.graphics.Color, spoiler: Boolean = false) {
+private fun ArcEntry(act: String, text: String, accent: androidx.compose.ui.graphics.Color, spoiler: Boolean = false) {
     Row(Modifier.padding(vertical = 6.dp)) {
         Box(
             Modifier
@@ -363,7 +368,7 @@ private fun ArcEntry(act: Int, text: String, accent: androidx.compose.ui.graphic
                 .background(accent.copy(alpha = 0.14f), RoundedCornerShape(8.dp)),
             contentAlignment = Alignment.Center,
         ) {
-            Text(roman(act), color = accent, style = MaterialTheme.typography.labelLarge, fontFamily = FontFamily.Serif)
+            Text(act, color = accent, style = MaterialTheme.typography.labelLarge, fontFamily = FontFamily.Serif)
         }
         Spacer(Modifier.width(12.dp))
         Text(
