@@ -7,6 +7,13 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path $PSScriptRoot -Parent
+
+# Native tools write progress to stderr, which "Stop" would treat as a failure; judge them by exit code.
+function Run([scriptblock]$Command) {
+    $ErrorActionPreference = "Continue"
+    & $Command 2>&1 | ForEach-Object { "$_" } | Out-Host
+    if ($LASTEXITCODE) { throw "Команда завершилася з кодом ${LASTEXITCODE}: $Command" }
+}
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Версія має бути у форматі 1.2.3" }
 if (-not (Test-Path "$root\keystore\release.jks")) { throw "Немає keystore\release.jks — без нього оновлення не встановиться поверх старої версії" }
 
@@ -21,10 +28,8 @@ subst $drive $root
 try {
     Push-Location "$drive\"
     if (-not $env:JAVA_HOME) { $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.20.101-hotspot" }
-    node tools\build-data.js
-    if ($LASTEXITCODE) { throw "build-data.js failed" }
-    .\gradlew.bat testDebugUnitTest assembleRelease --console=plain -q
-    if ($LASTEXITCODE) { throw "Gradle build failed" }
+    Run { node tools\build-data.js }
+    Run { .\gradlew.bat testDebugUnitTest assembleRelease --console=plain -q }
 } finally {
     Pop-Location
     subst $drive /D
@@ -36,10 +41,10 @@ $apk = "$dist\Othello-Reader.apk"
 Copy-Item "$root\app\build\outputs\apk\release\app-release.apk" $apk -Force
 
 Push-Location $root
-git add -A
-git commit -m "Release v$Version" -m $Notes
-git tag "v$Version"
-git push origin HEAD --tags
-gh release create "v$Version" $apk --title "Отелло $Version" --notes $Notes
+Run { git add -A }
+if (git status --porcelain) { Run { git commit -m "Release v$Version" -m $Notes } }
+Run { git tag "v$Version" }
+Run { git push origin HEAD --tags }
+Run { gh release create "v$Version" $apk --title "Отелло $Version" --notes $Notes }
 Pop-Location
 Write-Host "Опубліковано v$Version. Застосунки підхоплять оновлення протягом доби або одразу через Налаштування -> Перевірити."
