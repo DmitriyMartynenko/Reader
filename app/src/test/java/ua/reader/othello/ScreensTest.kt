@@ -284,6 +284,22 @@ class ScreensTest {
     @Test
     fun christie_lensChooser() = snapSheet(Sheet.Lens, book = christie, scene = christie.scenes.first { it.short == "9" })
 
+    // Real history laid out as a pyramid, with cards that separate the record from the legend.
+    private val tombstone = TestData.book(TestData.shelf.first { it.id == "tombstone-1881" })
+    private fun chronicleBeat(short: String, n: Int = 0) = tombstone.scenes.first { it.short == short }.lines[n].id
+
+    @Test
+    fun tombstone0_idea() = snapApp(Tier.Idea, line = chronicleBeat("18"), book = tombstone)
+
+    @Test
+    fun tombstone1_parts() = snapApp(Tier.Acts, line = chronicleBeat("18"), book = tombstone)
+
+    @Test
+    fun tombstone4_gunfight() = snapApp(Tier.Text, line = chronicleBeat("18", 7), book = tombstone)
+
+    @Test
+    fun tombstoneLens_ike() = snapApp(Tier.Text, line = chronicleBeat("18", 1), lens = "ike", book = tombstone)
+
     @Test
     fun library_shelf() {
         val prefs = Prefs(null)
