@@ -235,6 +235,55 @@ class ScreensTest {
         }
     }
 
+    // A guide to a public-domain novel, retold in our own words, with cards that take each trap apart.
+    private val monteCristo = TestData.book(TestData.shelf.first { it.id == "monte-cristo" })
+    private fun chapterBeat(chapter: Int, n: Int = 0) = monteCristo.scenes.first { it.short == "$chapter" }.lines[n].id
+
+    @Test
+    fun monteCristo0_idea() = snapApp(Tier.Idea, line = chapterBeat(4), book = monteCristo)
+
+    @Test
+    fun monteCristo1_parts() = snapApp(Tier.Acts, line = chapterBeat(4), book = monteCristo)
+
+    @Test
+    fun monteCristo4_trapCard() = snapApp(Tier.Text, line = chapterBeat(4, 3), book = monteCristo)
+
+    @Test
+    fun monteCristo4_trapCardDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Text, line = chapterBeat(4, 3), book = monteCristo)
+    }
+
+    @Test
+    fun monteCristo4_trapThroughTheCount() = snapApp(Tier.Text, line = chapterBeat(26, 2), lens = "dantes", book = monteCristo)
+
+    @Test
+    fun monteCristoLens_count() = snapApp(Tier.Idea, line = chapterBeat(63), lens = "dantes", book = monteCristo)
+
+    @Test
+    fun monteCristo_guideSheet() = paparazzi.snapshot {
+        TestHost { SheetFrame { GuideSheet(monteCristo, CopyState.None, {}, {}) } }
+    }
+
+    // A guide to a whodunit: spoiler-safe cards while the story runs, the full breakdown in the last part.
+    private val christie = TestData.book(TestData.shelf.first { it.id == "and-then-there-were-none" })
+    private fun unitBeat(short: String, n: Int = 0) = christie.scenes.first { it.short == short }.lines[n].id
+
+    @Test
+    fun christie0_idea() = snapApp(Tier.Idea, line = unitBeat("3"), book = christie)
+
+    @Test
+    fun christie1_parts() = snapApp(Tier.Acts, line = unitBeat("3"), book = christie)
+
+    @Test
+    fun christie4_storyCard() = snapApp(Tier.Text, line = unitBeat("13", 4), book = christie)
+
+    @Test
+    fun christie4_trapBreakdown() = snapApp(Tier.Text, line = unitBeat("П8", 1), book = christie)
+
+    @Test
+    fun christie_lensChooser() = snapSheet(Sheet.Lens, book = christie, scene = christie.scenes.first { it.short == "9" })
+
     @Test
     fun library_shelf() {
         val prefs = Prefs(null)

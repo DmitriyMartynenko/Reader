@@ -424,17 +424,49 @@ private fun SceneHeader(play: Play, scene: Scene, title: String, onCharacter: (S
     }
 }
 
-/** A beat of a retelling: plain prose, names clickable. */
+/** A beat of a retelling: plain prose, names clickable; an explanatory note sits on its own card. */
 @Composable
 private fun ProseRow(play: Play, line: Line, prefs: Prefs, onCharacter: (String) -> Unit) {
-    Text(
-        formatText(line.uk, play, prefs.highlightNames, onCharacter),
-        fontFamily = FontFamily.Serif,
-        fontSize = prefs.fontSize.sp,
-        lineHeight = (prefs.fontSize * 1.45f).sp,
-        color = MaterialTheme.colorScheme.onBackground,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
-    )
+    val text = formatText(line.uk, play, prefs.highlightNames, onCharacter)
+    if (!line.isNote) {
+        Text(
+            text,
+            fontFamily = FontFamily.Serif,
+            fontSize = prefs.fontSize.sp,
+            lineHeight = (prefs.fontSize * 1.45f).sp,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp),
+        )
+        return
+    }
+    val accent = MaterialTheme.colorScheme.tertiary
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f))
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(6.dp).background(accent, CircleShape))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                play.terms.noteLabel.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 0.1.em,
+                color = accent,
+            )
+        }
+        Text(
+            text,
+            fontSize = (prefs.fontSize * 0.92f).sp,
+            lineHeight = (prefs.fontSize * 1.4f).sp,
+            color = MaterialTheme.colorScheme.onBackground,
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
 }
 
 @Composable

@@ -30,6 +30,7 @@ const characterIds = new Set(read('characters.json').characters.map(c => c.id));
 //   title: …   place: …   summary: …
 //   ! <key moment>                                 attaches to the next beat
 //   [<ids who take part>] <beat of the retelling>
+//   * [<ids>] <note>                               a beat that explains rather than tells (terms.noteLabel)
 function readGuide() {
   const dir2 = path.join(dir, 'source/guide');
   const acts = fs.readdirSync(dir2).filter(f => /^\d+\.txt$/.test(f)).map(f => +f.slice(0, -4)).sort((x, y) => x - y);
@@ -58,10 +59,11 @@ function readGuide() {
         return;
       }
       if ((m = line.match(/^! (.+)$/))) { pending = m[1]; return; }
-      if ((m = line.match(/^\[([a-z0-9_ -]*)\] (.+)$/))) {
-        const h = m[1].split(/\s+/).filter(Boolean);
+      if ((m = line.match(/^(\* )?\[([a-z0-9_ -]*)\] (.+)$/))) {
+        const h = m[2].split(/\s+/).filter(Boolean);
         for (const c of h) if (!characterIds.has(c)) errors.push(`${where}: unknown character ${c}`);
-        const item = { id: ++id, uk: m[2], p: 1 };
+        const item = { id: ++id, uk: m[3], p: 1 };
+        if (m[1]) item.n = 1;
         if (h.length) item.h = h;
         unit.items.push(item);
         if (pending) { sum.moments.push({ line: id, text: pending }); pending = null; }

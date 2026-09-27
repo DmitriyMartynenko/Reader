@@ -89,7 +89,7 @@ fun App(
     val context = LocalContext.current
     val store = remember { CopyStore(File(context.filesDir, "copies")) }
     var copyState by remember(play) {
-        mutableStateOf(if (play.meta.guide == null) CopyState.None else store.load(play.meta.id)?.let { CopyState.Ready(it) } ?: CopyState.None)
+        mutableStateOf(if (play.meta.guide?.importHint == null) CopyState.None else store.load(play.meta.id)?.let { CopyState.Ready(it) } ?: CopyState.None)
     }
     var copyChapter by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
@@ -328,9 +328,10 @@ private fun AppTopBar(
             }
         },
         actions = {
-            if (play.meta.guide != null) {
+            val guide = play.meta.guide
+            if (guide != null) {
                 IconButton(onClick = { onOpen(Sheet.Guide) }) {
-                    Icon(Icons.Filled.Info, contentDescription = "Путівник і ваш примірник")
+                    Icon(Icons.Filled.Info, contentDescription = guideTitle(guide))
                 }
             }
             LensButton(lens) { onOpen(Sheet.Lens) }

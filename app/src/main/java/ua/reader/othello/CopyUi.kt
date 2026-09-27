@@ -42,14 +42,15 @@ sealed interface CopyState {
     data class Failed(val message: String) : CopyState
 }
 
-/** About a guide: why there is no text, and the reader's own copy. */
+/** About a guide: why there is no text, and the reader's own copy where the guide takes one. */
 @Composable
 fun GuideSheet(play: Play, state: CopyState, onImport: () -> Unit, onRemove: () -> Unit) {
     val guide = play.meta.guide ?: return
     Column(Modifier.padding(horizontal = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text("Путівник і ваш примірник", style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
+        Text(guideTitle(guide), style = MaterialTheme.typography.titleLarge, fontFamily = FontFamily.Serif)
         Text(guide.notice, style = MaterialTheme.typography.bodyMedium)
-        Text(guide.importHint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        val hint = guide.importHint ?: return@Column
+        Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         when (state) {
             CopyState.None -> Button(onClick = onImport) { Text("Додати свій примірник (FB2 або EPUB)") }
             CopyState.Importing -> Row { CircularProgressIndicator(); Text("  Розбираю книгу…") }
@@ -68,6 +69,9 @@ fun GuideSheet(play: Play, state: CopyState, onImport: () -> Unit, onRemove: () 
         }
     }
 }
+
+/** What the guide sheet and its button are called: a guide that takes no copy is just a guide. */
+fun guideTitle(guide: Guide) = if (guide.importHint == null) "Про путівник" else "Путівник і ваш примірник"
 
 /** One unit of the reader's own copy, full screen, with names that open profiles. */
 @OptIn(ExperimentalMaterial3Api::class)

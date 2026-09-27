@@ -22,6 +22,8 @@ data class Line(
     val shutOut: Set<String> = emptySet(),
     /** A retelling beat of a guide book: prose without a speaker; [hear] holds who takes part. */
     val isProse: Boolean = false,
+    /** A beat that steps out of the story to explain it, headed by [Terms.noteLabel]. */
+    val isNote: Boolean = false,
 ) {
     val isDirection get() = speaker == null && !isProse
 
@@ -85,6 +87,8 @@ data class Terms(
     val textTier: String = "Текст",
     /** Why a character misses a line: "немає на сцені" in a play. */
     val offstage: String = "немає на сцені",
+    /** The heading of a guide's explanatory beats, e.g. "Механіка пастки". */
+    val noteLabel: String = "Примітка",
 ) {
     fun acts(n: Int) = uaPlural(n, act[0], act[1], act[2])
     fun scenes(n: Int) = uaPlural(n, scene[0], scene[1], scene[2])
@@ -137,6 +141,7 @@ data class Terms(
             actGenitiveLabels = o.intMap("actGenitiveLabels"),
             textTier = o.optString("textTier").ifEmpty { "Текст" },
             offstage = o.optString("offstage").ifEmpty { "немає на сцені" },
+            noteLabel = o.optString("noteLabel").ifEmpty { "Примітка" },
         )
     }
 }
@@ -170,13 +175,13 @@ data class BookMeta(
             originalHint = o.getString("originalHint"),
             credits = o.getString("credits"),
             terms = Terms.parse(o.getJSONObject("terms")),
-            guide = o.optJSONObject("guide")?.let { Guide(it.getString("notice"), it.getString("importHint")) },
+            guide = o.optJSONObject("guide")?.let { Guide(it.getString("notice"), it.optString("importHint").ifEmpty { null }) },
         )
     }
 }
 
-/** Why a book is a guide and how to add one's own copy of the work. */
-data class Guide(val notice: String, val importHint: String)
+/** Why a book is a guide and, if the reader may add their own copy of the work, how. */
+data class Guide(val notice: String, val importHint: String?)
 
 /** One book of the library, fully loaded: text, characters, pyramid and perspectives. */
 class Play(
@@ -255,6 +260,7 @@ class Play(
                             asleep = ids("z"),
                             shutOut = ids("x"),
                             isProse = l.has("p"),
+                            isNote = l.has("n"),
                         )
                     },
                 )
