@@ -300,6 +300,86 @@ class ScreensTest {
     @Test
     fun tombstoneLens_ike() = snapApp(Tier.Text, line = chronicleBeat("18", 1), lens = "ike", book = tombstone)
 
+    // A TV series retold with three kinds of cards: shadow power, the plan that outlives its author, the real history.
+    private val deadwood = TestData.book(TestData.shelf.first { it.id == "deadwood" })
+    private fun episodeBeat(short: String, n: Int = 0) = deadwood.scenes.first { it.short == short }.lines[n].id
+
+    @Test
+    fun deadwood0_idea() = snapApp(Tier.Idea, line = episodeBeat("1×6"), book = deadwood)
+
+    @Test
+    fun deadwood1_parts() = snapApp(Tier.Acts, line = episodeBeat("1×6"), book = deadwood)
+
+    @Test
+    fun deadwood4_threeCards() = snapApp(Tier.Text, line = episodeBeat("1×9", 3), book = deadwood)
+
+    @Test
+    fun deadwood4_threeCardsDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Text, line = episodeBeat("1×9", 3), book = deadwood)
+    }
+
+    @Test
+    fun deadwood4_planAfterHearstLeaves() = snapApp(Tier.Text, line = episodeBeat("3×12", 6), book = deadwood)
+
+    @Test
+    fun deadwoodLens_hearst() = snapApp(Tier.Text, line = episodeBeat("Ф2"), lens = "hearst", book = deadwood)
+
+    @Test
+    fun deadwood_guideSheet() = paparazzi.snapshot {
+        TestHost { SheetFrame { GuideSheet(deadwood, CopyState.None, {}, {}) } }
+    }
+
+    // A film guide with four kinds of cards, among them how the comic told it and what really happened in 1605.
+    private val vendetta = TestData.book(TestData.shelf.first { it.id == "v-for-vendetta" })
+    private fun vendettaBeat(short: String, n: Int = 0) = vendetta.scenes.first { it.short == short }.lines[n].id
+
+    @Test
+    fun vendetta0_idea() = snapApp(Tier.Idea, line = vendettaBeat("4"), book = vendetta)
+
+    @Test
+    fun vendetta1_parts() = snapApp(Tier.Acts, line = vendettaBeat("4"), book = vendetta)
+
+    @Test
+    fun vendetta4_prologue() = snapApp(Tier.Text, line = vendettaBeat("Пр", 2), book = vendetta)
+
+    @Test
+    fun vendetta4_rookwood() = snapApp(Tier.Text, line = vendettaBeat("16", 2), book = vendetta)
+
+    @Test
+    fun vendetta4_trainDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Text, line = vendettaBeat("22", 4), book = vendetta)
+    }
+
+    @Test
+    fun vendettaLens_evey() = snapApp(Tier.Text, line = vendettaBeat("14"), lens = "evey", book = vendetta)
+
+    // A five-season series with flashbacks, and a closing part on what really happened.
+    private val boardwalk = TestData.book(TestData.shelf.first { it.id == "boardwalk-empire" })
+    private fun boardwalkBeat(short: String, n: Int = 0) = boardwalk.scenes.first { it.short == short }.lines[n].id
+
+    @Test
+    fun boardwalk0_idea() = snapApp(Tier.Idea, line = boardwalkBeat("1×1"), book = boardwalk)
+
+    @Test
+    fun boardwalk1_parts() = snapApp(Tier.Acts, line = boardwalkBeat("1×1"), book = boardwalk)
+
+    @Test
+    fun boardwalk4_prohibition() = snapApp(Tier.Text, line = boardwalkBeat("1×1", 5), book = boardwalk)
+
+    @Test
+    fun boardwalk4_theDeal1897() = snapApp(Tier.Text, line = boardwalkBeat("5×8"), book = boardwalk)
+
+    @Test
+    fun boardwalk4_conferenceDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Text, line = boardwalkBeat("П3", 2), book = boardwalk)
+    }
+
+    @Test
+    fun boardwalkLens_nucky() = snapApp(Tier.Text, line = boardwalkBeat("2×12", 6), lens = "nucky", book = boardwalk)
+
     @Test
     fun library_shelf() {
         val prefs = Prefs(null)

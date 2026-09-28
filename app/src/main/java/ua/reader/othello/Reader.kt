@@ -439,20 +439,23 @@ private fun ProseRow(play: Play, line: Line, prefs: Prefs, onCharacter: (String)
         )
         return
     }
-    val accent = MaterialTheme.colorScheme.tertiary
+    // A book with several kinds of notes tells them apart by heading and colour.
+    val kind = play.terms.noteKind(line)
+    val accent = kind?.color?.forTheme() ?: MaterialTheme.colorScheme.tertiary
+    val card = kind?.let { accent.copy(alpha = 0.12f) } ?: MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f)
     Column(
         Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.45f))
+            .background(card)
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(6.dp).background(accent, CircleShape))
             Spacer(Modifier.width(6.dp))
             Text(
-                play.terms.noteLabel.uppercase(),
+                (kind?.label ?: play.terms.noteLabel).uppercase(),
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.1.em,

@@ -24,6 +24,8 @@ data class Line(
     val isProse: Boolean = false,
     /** A beat that steps out of the story to explain it, headed by [Terms.noteLabel]. */
     val isNote: Boolean = false,
+    /** Which of [Terms.noteKinds] heads the note instead, when a book keeps several kinds apart. */
+    val noteKind: String? = null,
 ) {
     val isDirection get() = speaker == null && !isProse
 
@@ -89,7 +91,12 @@ data class Terms(
     val offstage: String = "немає на сцені",
     /** The heading of a guide's explanatory beats, e.g. "Механіка пастки". */
     val noteLabel: String = "Примітка",
+    /** Kinds of notes a book keeps apart, each with its own heading and colour: "Тіньова влада"… */
+    val noteKinds: Map<String, NoteKind> = emptyMap(),
 ) {
+    /** The kind that heads a note; null means the book's one [noteLabel]. */
+    fun noteKind(line: Line): NoteKind? = line.noteKind?.let(noteKinds::get)
+
     fun acts(n: Int) = uaPlural(n, act[0], act[1], act[2])
     fun scenes(n: Int) = uaPlural(n, scene[0], scene[1], scene[2])
     fun lines(n: Int) = uaPlural(n, line[0], line[1], line[2])
@@ -142,7 +149,17 @@ data class Terms(
             textTier = o.optString("textTier").ifEmpty { "Текст" },
             offstage = o.optString("offstage").ifEmpty { "немає на сцені" },
             noteLabel = o.optString("noteLabel").ifEmpty { "Примітка" },
+            noteKinds = o.optJSONObject("noteKinds")?.let { k ->
+                k.keys().asSequence().associateWith { NoteKind.parse(k.getJSONObject(it)) }
+            }.orEmpty(),
         )
+    }
+}
+
+/** One kind of a guide's notes, e.g. "Як було насправді" in brown. */
+data class NoteKind(val label: String, val color: Color) {
+    companion object {
+        fun parse(o: JSONObject) = NoteKind(o.getString("label"), hexColor(o.getString("color")))
     }
 }
 
@@ -261,6 +278,7 @@ class Play(
                             shutOut = ids("x"),
                             isProse = l.has("p"),
                             isNote = l.has("n"),
+                            noteKind = l.optString("k").ifEmpty { null },
                         )
                     },
                 )
