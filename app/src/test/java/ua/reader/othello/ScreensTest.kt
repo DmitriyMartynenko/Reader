@@ -380,6 +380,34 @@ class ScreensTest {
     @Test
     fun boardwalkLens_nucky() = snapApp(Tier.Text, line = boardwalkBeat("2×12", 6), lens = "nucky", book = boardwalk)
 
+    // A film trilogy told in story order, with five kinds of cards and a closing part on the real Mafia.
+    private val godfather = TestData.book(TestData.shelf.first { it.id == "the-godfather" })
+    private fun godfatherBeat(short: String, n: Int = 0) = godfather.scenes.first { it.short == short }.lines[n].id
+
+    @Test
+    fun godfather0_idea() = snapApp(Tier.Idea, line = godfatherBeat("6"), book = godfather)
+
+    @Test
+    fun godfather1_parts() = snapApp(Tier.Acts, line = godfatherBeat("6"), book = godfather)
+
+    @Test
+    fun godfather4_weddingHierarchy() = snapApp(Tier.Text, line = godfatherBeat("6", 9), book = godfather)
+
+    @Test
+    fun godfather4_baptism() = snapApp(Tier.Text, line = godfatherBeat("20", 1), book = godfather)
+
+    @Test
+    fun godfather4_havanaDark() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_5.copy(nightMode = NightMode.NIGHT))
+        snapApp(Tier.Text, line = godfatherBeat("23", 6), book = godfather)
+    }
+
+    @Test
+    fun godfather4_realRanks() = snapApp(Tier.Text, line = godfatherBeat("П2", 4), book = godfather)
+
+    @Test
+    fun godfatherLens_michael() = snapApp(Tier.Text, line = godfatherBeat("20", 8), lens = "michael", book = godfather)
+
     @Test
     fun library_shelf() {
         val prefs = Prefs(null)
