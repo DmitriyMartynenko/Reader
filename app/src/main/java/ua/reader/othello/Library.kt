@@ -21,21 +21,29 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,8 +61,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 
 /**
- * The top of the whole app: the shelf of books. Every book on it is a pyramid of its own,
- * packed into one file by tools/build-book.js and listed in assets/books/library.json.
+ * The top of the whole app: the shelf of books. Every book on it is a pyramid of its own, packed
+ * into one file by tools/build-book.js. The built-in books come with the app; below them are the
+ * reader's own, added from such files on this phone and removable from it.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,9 +73,23 @@ fun LibraryScreen(
     prefs: Prefs,
     updates: UpdateController,
     onOpen: (LibraryEntry) -> Unit,
+    onAddBook: () -> Unit = {},
+    onRemove: (LibraryEntry) -> Unit = {},
+    notice: String? = null,
+    onNoticeShown: () -> Unit = {},
 ) {
     var settings by remember { mutableStateOf(false) }
+    var removing by remember { mutableStateOf<LibraryEntry?>(null) }
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(notice) {
+        if (notice != null) {
+            snackbar.showSnackbar(notice)
+            onNoticeShown()
+        }
+    }
+    val (builtIn, mine) = shelf.partition { it.builtIn }
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbar) },
         topBar = {
             TopAppBar(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
@@ -103,27 +126,62 @@ fun LibraryScreen(
                     modifier = Modifier.padding(horizontal = 24.dp),
                 )
             }
-            items(shelf, key = { it.id }) { entry ->
+            items(builtIn, key = { it.id }) { entry ->
                 BookCard(entry, shelfState(entry.id)) { onOpen(entry) }
             }
+            if (mine.isNotEmpty()) {
+                item(key = "mine") {
+                    Text(
+                        "Мої книги",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontFamily = FontFamily.Serif,
+                        modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 12.dp),
+                    )
+                }
+                items(mine, key = { it.id }) { entry ->
+                    BookCard(entry, shelfState(entry.id), onRemove = { removing = entry }) { onOpen(entry) }
+                }
+            }
             item(key = "more") {
-                Box(
+                Column(
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CardShape)
                         .padding(20.dp),
-                    contentAlignment = Alignment.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
                     Text(
-                        "Нові книги з'являтимуться на цій полиці з оновленнями застосунку.",
+                        "Стандартні книги приходять з оновленнями застосунку. Власну книгу можна додати з файлу .book.json — " +
+                            "вона буде лише на цьому пристрої.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
+                    Spacer(Modifier.height(12.dp))
+                    FilledTonalButton(onClick = onAddBook) {
+                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Додати книгу з файлу")
+                    }
                 }
             }
         }
+    }
+
+    removing?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { removing = null },
+            title = { Text("Видалити «${entry.title}»?") },
+            text = { Text("Книга зникне з цього пристрою разом із місцем, де ви зупинилися. Її можна буде додати знову з того самого файлу.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    removing = null
+                    onRemove(entry)
+                }) { Text("Видалити") }
+            },
+            dismissButton = { TextButton(onClick = { removing = null }) { Text("Скасувати") } },
+        )
     }
 
     if (settings) {
@@ -142,7 +200,7 @@ fun LibraryScreen(
 data class ShelfState(val progress: Float, val started: Boolean)
 
 @Composable
-private fun BookCard(entry: LibraryEntry, state: ShelfState, onClick: () -> Unit) {
+private fun BookCard(entry: LibraryEntry, state: ShelfState, onRemove: (() -> Unit)? = null, onClick: () -> Unit) {
     val progress = state.progress
     Surface(
         onClick = onClick,
@@ -182,6 +240,16 @@ private fun BookCard(entry: LibraryEntry, state: ShelfState, onClick: () -> Unit
                     Text(if (state.started) "Розпочато" else "Ще не розпочато", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
                 }
             }
+            if (onRemove != null) {
+                IconButton(onClick = onRemove, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = "Видалити «${entry.title}»",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
+            }
         }
     }
 }
@@ -196,9 +264,13 @@ private fun Cover(entry: LibraryEntry, modifier: Modifier) {
     ) {
         Box(Modifier.fillMaxSize().border(1.dp, Color.White.copy(alpha = 0.35f), RoundedCornerShape(4.dp)).padding(4.dp)) {
             Column(Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                // Long words must not break mid-word on the narrow cover.
+                // Long words must not break mid-word on the narrow cover: at 14sp it holds six letters a line.
                 val longest = entry.title.split(' ', '-').maxOf { it.length }
-                val size = if (longest > 7) 10f else 14f
+                val size = when {
+                    longest > 10 -> 8f
+                    longest > 6 -> 10f
+                    else -> 14f
+                }
                 Text(
                     entry.title.replace("-", "-​"),
                     color = Color.White,

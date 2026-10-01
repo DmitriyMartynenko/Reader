@@ -1,9 +1,12 @@
 package ua.reader.othello
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,7 +24,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,8 +39,32 @@ class MainActivity : ComponentActivity() {
                 val scope = rememberCoroutineScope()
                 LaunchedEffect(updates) { updates.checkOnLaunch(scope) }
 
-                val shelf = remember { LibraryEntry.load(applicationContext) }
+                // The built-in books come with the app; the reader's own live on this phone only.
+                val builtIn = remember { LibraryEntry.load(applicationContext) }
+                val myBooks = remember { MyBooks(File(filesDir, "library"), builtIn.map { it.id }.toSet()) }
+                var mine by remember { mutableStateOf(myBooks.entries()) }
+                var notice by remember { mutableStateOf<String?>(null) }
+                val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri: Uri? ->
+                    if (uri == null) return@rememberLauncherForActivityResult
+                    scope.launch {
+                        val message = withContext(Dispatchers.IO) {
+                            try {
+                                val bytes = contentResolver.openInputStream(uri)!!.use { it.readBytes() }
+                                val added = myBooks.add(bytes)
+                                "${if (added.replaced) "Оновлено" else "Додано"} «${added.entry.title}»"
+                            } catch (e: ImportException) {
+                                e.message
+                            } catch (e: Exception) {
+                                "Не вдалося прочитати файл."
+                            }
+                        }
+                        mine = myBooks.entries()
+                        notice = message
+                    }
+                }
+
                 var openId by rememberSaveable { mutableStateOf<String?>(null) }
+                val shelf = builtIn + mine
                 val open = shelf.firstOrNull { it.id == openId }
                 if (open == null) {
                     LibraryScreen(
@@ -44,9 +73,23 @@ class MainActivity : ComponentActivity() {
                         prefs = prefs,
                         updates = updates,
                         onOpen = { openId = it.id },
+                        onAddBook = { picker.launch(arrayOf("*/*")) },
+                        onRemove = { entry ->
+                            removeBook(myBooks, entry.id)
+                            mine = myBooks.entries()
+                            notice = "Видалено «${entry.title}»"
+                        },
+                        notice = notice,
+                        onNoticeShown = { notice = null },
                     )
                 } else {
-                    BookScreen(open, prefs, updates) { openId = null }
+                    BookScreen(
+                        open, myBooks, prefs, updates,
+                        onFailed = {
+                            openId = null
+                            notice = "Не вдалося відкрити «${open.title}»."
+                        },
+                    ) { openId = null }
                 }
                 UpdateDialogs(updates, scope)
             }
@@ -58,11 +101,29 @@ class MainActivity : ComponentActivity() {
         if (id == "othello") prefs.takeSingleBookState()?.let(it::adopt)
     }
 
+    /** A removed book leaves nothing behind: its file, its reading position, an imported copy. */
+    private fun removeBook(myBooks: MyBooks, id: String) {
+        myBooks.remove(id)
+        deleteSharedPreferences("book_$id")
+        CopyStore(File(filesDir, "copies")).remove(id)
+    }
+
     @Composable
-    private fun BookScreen(entry: LibraryEntry, prefs: Prefs, updates: UpdateController, onLibrary: () -> Unit) {
+    private fun BookScreen(
+        entry: LibraryEntry,
+        myBooks: MyBooks,
+        prefs: Prefs,
+        updates: UpdateController,
+        onFailed: () -> Unit,
+        onLibrary: () -> Unit,
+    ) {
         val book = remember(entry.id) { bookPrefs(entry.id, prefs) }
         val play by produceState<Play?>(null, entry.id) {
-            value = withContext(Dispatchers.Default) { Play.load(applicationContext, entry.file) }
+            // A reader's own book was checked when added, but its file lives outside the app and may still fail.
+            val loaded = withContext(Dispatchers.Default) {
+                runCatching { if (entry.builtIn) Play.load(applicationContext, entry.file) else Play.parse(myBooks.read(entry)) }.getOrNull()
+            }
+            if (loaded == null) onFailed() else value = loaded
         }
         val loaded = play
         if (loaded == null) {

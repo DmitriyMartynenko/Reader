@@ -9,3 +9,5 @@ dist/
 *.apk
 # Signing key: never publish it. Keep a private backup — losing it means users must reinstall.
 keystore/
+# Books of your own: built into dist/books/ and added on a phone, never published with the app.
+my-books/

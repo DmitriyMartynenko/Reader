@@ -313,7 +313,10 @@ class Play(
     }
 }
 
-/** A book on the library shelf, read from assets/books/library.json without opening the book. */
+/**
+ * A book on the library shelf, read from a library index without opening the book: the built-in
+ * index in assets/books/library.json, or the index of books the reader added to this phone.
+ */
 data class LibraryEntry(
     val id: String,
     val title: String,
@@ -323,9 +326,11 @@ data class LibraryEntry(
     val cover: Color,
     val idea: String,
     val file: String,
+    /** Shipped inside the app; otherwise added by the reader and removable. */
+    val builtIn: Boolean = true,
 ) {
     companion object {
-        fun parseAll(text: String): List<LibraryEntry> = JSONObject(text).getJSONArray("books").objects().map {
+        fun parseAll(text: String, builtIn: Boolean = true): List<LibraryEntry> = JSONObject(text).getJSONArray("books").objects().map {
             LibraryEntry(
                 id = it.getString("id"),
                 title = it.getString("title"),
@@ -335,6 +340,7 @@ data class LibraryEntry(
                 cover = hexColor(it.getString("cover")),
                 idea = it.getString("idea"),
                 file = it.getString("file"),
+                builtIn = builtIn,
             )
         }
 

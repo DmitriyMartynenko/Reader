@@ -429,6 +429,27 @@ class ScreensTest {
         }
     }
 
+    // The reader's own books sit under the built-in ones, each with a delete button; the shelf ends with "add".
+    @Test
+    fun library_myBooks() {
+        val prefs = Prefs(null)
+        val mine = listOf(
+            LibraryEntry("my-story", "Моя книга", "Автор", "оповідання", 2026, hexColor("#7A2E2A"), "Тут стоїть ідея власної книги — вершина її піраміди.", "my-story.book.json", builtIn = false),
+            LibraryEntry("notes", "Нотатки до роману", "Автор", "чернетка", 2026, hexColor("#2F4F6F"), "Друга власна книга, вже розпочата.", "notes.book.json", builtIn = false),
+        )
+        paparazzi.snapshot {
+            TestHost {
+                LibraryScreen(
+                    TestData.shelf.take(1) + mine,
+                    shelfState = { if (it == "notes") ShelfState(0.2f, true) else ShelfState(0f, false) },
+                    prefs = prefs,
+                    updates = UpdateController(null, prefs),
+                    onOpen = {},
+                )
+            }
+        }
+    }
+
     private fun snapSheet(sheet: Sheet, update: Release? = null, book: Play = play, scene: Scene = temptationScene) {
         val prefs = Prefs(null)
         val updates = UpdateController(null, prefs).apply { available = update }

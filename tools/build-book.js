@@ -8,6 +8,10 @@
 //   characters.json    profiles; pyramid.json idea → acts → scenes → key moments;
 //   perspectives.json  the story through each character's eyes
 // Output: app/src/main/assets/books/<id>.book.json and app/src/main/assets/books/library.json.
+//
+// A book of your own lives in my-books/<id>/ instead (same files; the folder is never committed).
+// It is packed into dist/books/<id>.book.json and stays out of the app: copy that file to a phone
+// and add it in the library with «Додати книгу з файлу».
 const fs = require('fs');
 const path = require('path');
 const { computePresence } = require('./presence');
@@ -15,7 +19,12 @@ const { computePresence } = require('./presence');
 const root = path.join(__dirname, '..');
 const id = process.argv[2];
 if (!id) { console.error('usage: node tools/build-book.js <book id>'); process.exit(1); }
-const dir = path.join(root, 'books', id);
+const shelfDir = path.join(root, 'books', id);
+const ownDir = path.join(root, 'my-books', id);
+if (fs.existsSync(shelfDir) && fs.existsSync(ownDir)) { console.error(`${id} is both in books/ and in my-books/`); process.exit(1); }
+const own = fs.existsSync(ownDir);
+const dir = own ? ownDir : shelfDir;
+if (!fs.existsSync(dir)) { console.error(`no book ${id} in books/ or my-books/`); process.exit(1); }
 const read = name => JSON.parse(fs.readFileSync(path.join(dir, name), 'utf8'));
 
 const meta = read('book.json');
@@ -167,10 +176,15 @@ const book = {
 };
 
 const assets = path.join(root, 'app/src/main/assets/books');
-fs.mkdirSync(assets, { recursive: true });
-const out = path.join(assets, `${id}.book.json`);
+const outDir = own ? path.join(root, 'dist/books') : assets;
+fs.mkdirSync(outDir, { recursive: true });
+const out = path.join(outDir, `${id}.book.json`);
 fs.writeFileSync(out, JSON.stringify(book));
 console.log(`ok ${id}: ${scenes.length} scenes, ${scenes.reduce((a, s) => a + s.items.length, 0)} lines, ${fs.statSync(out).size} bytes`);
+if (own) {
+  console.log(`your own book: ${path.relative(root, out)} — copy it to the phone and add it with «Додати книгу з файлу»`);
+  process.exit(0);
+}
 
 // The library index: what the shelf shows without opening every book.
 const shelf = fs.readdirSync(path.join(root, 'books'))
